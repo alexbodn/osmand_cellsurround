@@ -18,7 +18,7 @@ object HttpClientProvider {
 
             val newInstance = OkHttpClient.Builder()
                 .cache(cache)
-                .addInterceptor { chain ->
+                .addNetworkInterceptor { chain ->
                     var request = chain.request()
 
                     // Force the cache if network is down or we just want to aggressively cache
