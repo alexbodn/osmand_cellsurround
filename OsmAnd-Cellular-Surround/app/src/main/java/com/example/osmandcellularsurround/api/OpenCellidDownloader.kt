@@ -11,7 +11,11 @@ import java.io.InputStream
 import java.util.zip.GZIPInputStream
 
 object OpenCellidDownloader {
-    private val client = OkHttpClient()
+    private lateinit var client: OkHttpClient
+
+    fun init(context: android.content.Context) {
+        client = HttpClientProvider.getClient(context)
+    }
 
     // Example URL. OpenCelliD usually provides MCC specific downloads if logged in or structured via link.
     // For the sake of this app, we will use the standard public link format if available,

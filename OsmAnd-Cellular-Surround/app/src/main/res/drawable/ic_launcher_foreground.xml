@@ -1,0 +1,20 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+  <path
+      android:fillColor="#008577"
+      android:pathData="M 0,0 h 108 v 108 h -108 z"/>
+  <path
+      android:fillColor="#FFFFFF"
+      android:pathData="M 54,34 c -11.04,0 -20,8.96 -20,20 c 0,11.04 8.96,20 20,20 c 11.04,0 20,-8.96 20,-20 C 74,42.96 65.04,34 54,34 z M 54,70 c -8.84,0 -16,-7.16 -16,-16 c 0,-8.84 7.16,-16 16,-16 c 8.84,0 16,7.16 16,16 C 70,62.84 62.84,70 54,70 z"/>
+  <path
+      android:fillColor="#FFFFFF"
+      android:pathData="M 54,44 c -5.52,0 -10,4.48 -10,10 c 0,5.52 4.48,10 10,10 c 5.52,0 10,-4.48 10,-10 C 64,48.48 59.52,44 54,44 z"/>
+  <!-- Map path / Grid lines -->
+  <path
+      android:strokeColor="#DDDDDD"
+      android:strokeWidth="2"
+      android:pathData="M 20,54 h 68 M 54,20 v 68 M 34,20 v 68 M 74,20 v 68"/>
+</vector>

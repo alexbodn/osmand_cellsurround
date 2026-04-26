@@ -8,7 +8,11 @@ import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import org.json.JSONObject
 
 object OpenCellidApi {
-    private val client = OkHttpClient()
+    private lateinit var client: OkHttpClient
+
+    fun init(context: android.content.Context) {
+        client = HttpClientProvider.getClient(context)
+    }
 
     // Fallback to Unwired Labs API to get a single cell
     suspend fun getCellLocation(apiKey: String, mcc: Int, mnc: Int, lac: Int, cid: Long): Pair<Double, Double>? {

@@ -13,11 +13,15 @@ import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.coroutineScope
 import com.example.osmandcellularsurround.databinding.ActivityMainBinding
 import com.example.osmandcellularsurround.db.AppDatabase
+import com.example.osmandcellularsurround.api.OpenCellidApi
+import com.example.osmandcellularsurround.api.OpenCellidDownloader
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 class MainActivity : AppCompatActivity() {
+
+
 
     private lateinit var binding: ActivityMainBinding
     private lateinit var sharedPrefs: SharedPreferences
@@ -39,6 +43,8 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        OpenCellidApi.init(this)
+        OpenCellidDownloader.init(this)
         super.onCreate(savedInstanceState)
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
