@@ -77,10 +77,12 @@ class OsmAndHelper(private val context: Context) {
                 context.grantUriPermission("net.osmand", gpxUri, Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
 
                 val importParams = ImportGpxParams(gpxUri, "cellular_surround.gpx", "red", true)
-                aidl.importGpx(importParams)
+                val importSuccess = aidl.importGpx(importParams)
 
-                val showParams = ShowGpxParams("cellular_surround.gpx")
-                aidl.showGpx(showParams)
+                if (importSuccess) {
+                    val showParams = ShowGpxParams("cellular_surround.gpx")
+                    aidl.showGpx(showParams)
+                }
 
                 val locationParams = SetMapLocationParams(lat, lon, 15, 0f, true)
                 aidl.setMapLocation(locationParams)

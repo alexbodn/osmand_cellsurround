@@ -26,8 +26,11 @@ jobs:
     - name: Build with Gradle
       run: cd OsmAnd-Cellular-Surround && ./gradlew assembleRelease
 
+    - name: Rename APK
+      run: mv OsmAnd-Cellular-Surround/app/build/outputs/apk/release/app-release.apk OsmAnd-Cellular-Surround/app/build/outputs/apk/release/osmand-cellsurround.apk
+
     - name: Upload APK
       uses: actions/upload-artifact@v4
       with:
-        name: app-release
-        path: OsmAnd-Cellular-Surround/app/build/outputs/apk/release/app-release.apk
+        name: osmand-cellsurround
+        path: OsmAnd-Cellular-Surround/app/build/outputs/apk/release/osmand-cellsurround.apk
