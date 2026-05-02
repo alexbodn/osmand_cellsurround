@@ -187,7 +187,9 @@ class MainActivity : AppCompatActivity() {
             val msgGpx = "Generating GPX track with ${surroundingTowers.size} surrounding towers..."
             appendLog(msgGpx)
 
-            val gpxUri = GpxGenerator.generateGpx(this@MainActivity, mainTower, surroundingTowers)
+            val gpxUri = withContext(Dispatchers.IO) {
+                GpxGenerator.generateGpx(this@MainActivity, mainTower, surroundingTowers)
+            }
 
             val msgSend = "Sending to OsmAnd..."
             appendLog(msgSend)
