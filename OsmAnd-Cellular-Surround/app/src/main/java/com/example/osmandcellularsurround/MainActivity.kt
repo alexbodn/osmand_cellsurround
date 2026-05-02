@@ -195,7 +195,9 @@ class MainActivity : AppCompatActivity() {
             val connected = osmandHelper.connect()
             if (connected) {
                 withContext(Dispatchers.Main) {
-                    osmandHelper.showSurroundings(gpxUri, mainTower.lat, mainTower.lon)
+                    osmandHelper.showSurroundings(gpxUri, mainTower.lat, mainTower.lon) { logMsg ->
+                        appendLog(logMsg)
+                    }
                     val msgDone = "Done. Check OsmAnd."
                     appendLog(msgDone)
                     Toast.makeText(this@MainActivity, msgDone, Toast.LENGTH_SHORT).show()

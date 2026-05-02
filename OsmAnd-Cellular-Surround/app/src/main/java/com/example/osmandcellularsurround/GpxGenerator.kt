@@ -33,8 +33,8 @@ object GpxGenerator {
             writer.write("    <name>Connected: ${mainTower.mcc}-${mainTower.mnc}-${mainTower.lac}-${mainTower.cid}</name>\n")
             writer.write("    <desc>Currently Connected Cell Tower</desc>\n")
             writer.write("    <extensions>\n")
-            writer.write("      <osmand:color>#FF0000</osmand:color>\n")
-            writer.write("      <osmand:icon>radio_tower</osmand:icon>\n")
+            writer.write("      <color>#FF0000</color>\n")
+            writer.write("      <icon>radio_tower</icon>\n")
             writer.write("    </extensions>\n")
             writer.write("  </wpt>\n")
 
@@ -46,7 +46,7 @@ object GpxGenerator {
                 writer.write("  <wpt lat=\"${tower.lat}\" lon=\"${tower.lon}\">\n")
                 writer.write("    <name>${tower.mcc}-${tower.mnc}-${tower.lac}-${tower.cid}</name>\n")
                 writer.write("    <extensions>\n")
-                writer.write("      <osmand:icon>radio_tower</osmand:icon>\n")
+                writer.write("      <icon>radio_tower</icon>\n")
                 writer.write("    </extensions>\n")
                 writer.write("  </wpt>\n")
             }

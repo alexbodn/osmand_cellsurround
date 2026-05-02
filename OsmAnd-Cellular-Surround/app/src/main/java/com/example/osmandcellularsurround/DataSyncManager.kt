@@ -14,8 +14,8 @@ class DataSyncManager(private val context: Context) {
     suspend fun ensureCellTowerExistsAndGet(apiKey: String, radio: String, mcc: Int, mnc: Int, lac: Int, cid: Long, logger: (String) -> Unit): CellTower? {
         return withContext(Dispatchers.IO) {
             // 1. Check local DB
-            logger("DB Query: getCellTower(mcc=$mcc, mnc=$mnc, lac=$lac, cid=$cid)")
-            var tower = dao.getCellTower(mcc, mnc, lac, cid)
+            logger("DB Query: getCellTower(mcc=$mcc, mnc=$mnc, cid=$cid)")
+            var tower = dao.getCellTower(mcc, mnc, cid)
             if (tower != null) {
                 logger("DB Result: Found locally at lat=${tower.lat} lon=${tower.lon}")
                 return@withContext tower
@@ -31,7 +31,7 @@ class DataSyncManager(private val context: Context) {
                 logger("Download result: $success")
 
                 // Try to fetch again
-                tower = dao.getCellTower(mcc, mnc, lac, cid)
+                tower = dao.getCellTower(mcc, mnc, cid)
                 if (tower != null) {
                     logger("DB Result: Found locally after download at lat=${tower.lat} lon=${tower.lon}")
                     return@withContext tower

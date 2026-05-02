@@ -14,8 +14,8 @@ interface CellTowerDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertAll(cellTowers: List<CellTower>)
 
-    @Query("SELECT * FROM cell_towers WHERE mcc = :mcc AND mnc = :mnc AND lac = :lac AND cid = :cid LIMIT 1")
-    suspend fun getCellTower(mcc: Int, mnc: Int, lac: Int, cid: Long): CellTower?
+    @Query("SELECT * FROM cell_towers WHERE mcc = :mcc AND mnc = :mnc AND cid = :cid LIMIT 1")
+    suspend fun getCellTower(mcc: Int, mnc: Int, cid: Long): CellTower?
 
     @Query("SELECT * FROM cell_towers WHERE mcc = :mcc AND mnc = :mnc AND lac = :lac LIMIT 1")
     suspend fun getAnyTowerInLac(mcc: Int, mnc: Int, lac: Int): CellTower?

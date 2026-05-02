@@ -8,7 +8,7 @@ import androidx.room.PrimaryKey
     tableName = "cell_towers",
     indices = [
         Index(value = ["lat", "lon"]), // Index for spatial bounding box query
-        Index(value = ["mcc", "mnc", "lac", "cid"], unique = true) // Index for quick identification
+        Index(value = ["mcc", "mnc", "cid"], unique = true) // Index for quick identification, LAC not strictly required for tower ID
     ]
 )
 data class CellTower(
