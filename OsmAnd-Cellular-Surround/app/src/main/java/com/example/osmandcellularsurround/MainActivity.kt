@@ -161,8 +161,7 @@ class MainActivity : AppCompatActivity() {
             val connected = osmandHelper.connect()
             if (connected) {
                 withContext(Dispatchers.Main) {
-                    val gpxData = "" // Dummy placeholder for backward compat, not used if passing Uri directly via intent
-                    osmandHelper.showSurroundings(gpxUri, gpxData, mainTower.lat, mainTower.lon)
+                    osmandHelper.showSurroundings(gpxUri, mainTower.lat, mainTower.lon)
                     binding.tvStatus.text = "Status: Done. Check OsmAnd."
                 }
             } else {

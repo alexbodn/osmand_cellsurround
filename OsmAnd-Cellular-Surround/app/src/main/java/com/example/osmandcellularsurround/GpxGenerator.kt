@@ -1,6 +1,7 @@
 package com.example.osmandcellularsurround
 
 import android.content.Context
+import android.content.Intent
 import android.net.Uri
 import androidx.core.content.FileProvider
 import com.example.osmandcellularsurround.db.CellTower
@@ -13,8 +14,12 @@ import java.util.Locale
 object GpxGenerator {
 
     fun generateGpx(context: Context, mainTower: CellTower, surroundingTowers: List<CellTower>): Uri {
-        val fileName = "cellular_surround_${mainTower.mcc}_${mainTower.mnc}_${mainTower.lac}_${mainTower.cid}.gpx"
+        val fileName = "cellular_surround.gpx"
         val file = File(context.cacheDir, fileName)
+
+        if (file.exists()) {
+            file.delete()
+        }
 
         val timeString = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US).format(Date())
 
@@ -34,22 +39,31 @@ object GpxGenerator {
             writer.write("  </wpt>\n")
 
             // Surrounding towers
+            writer.write("  <trk>\n")
+            writer.write("    <name>Surrounding Towers</name>\n")
+            writer.write("    <trkseg>\n")
             for (tower in surroundingTowers) {
                 // Don't duplicate the main tower
                 if (tower.mcc == mainTower.mcc && tower.mnc == mainTower.mnc && tower.lac == mainTower.lac && tower.cid == mainTower.cid) continue
 
-                writer.write("  <wpt lat=\"${tower.lat}\" lon=\"${tower.lon}\">\n")
-                writer.write("    <name>${tower.mcc}-${tower.mnc}-${tower.lac}-${tower.cid}</name>\n")
-                writer.write("    <extensions>\n")
-                writer.write("      <icon>radio_tower</icon>\n")
-                writer.write("    </extensions>\n")
-                writer.write("  </wpt>\n")
+                writer.write("      <trkpt lat=\"${tower.lat}\" lon=\"${tower.lon}\">\n")
+                writer.write("        <name>${tower.mcc}-${tower.mnc}-${tower.lac}-${tower.cid}</name>\n")
+                writer.write("        <extensions>\n")
+                writer.write("          <icon>radio_tower</icon>\n")
+                writer.write("        </extensions>\n")
+                writer.write("      </trkpt>\n")
             }
+            writer.write("    </trkseg>\n")
+            writer.write("  </trk>\n")
 
             writer.write("</gpx>")
         }
 
-        return FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
+        val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
+        context.grantUriPermission("net.osmand.plus", uri, Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
+        context.grantUriPermission("net.osmand", uri, Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
+
+        return uri
     }
 
     // Calculates bounding box approx `radiusKm` around a center point

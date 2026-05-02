@@ -67,15 +67,12 @@ class OsmAndHelper(private val context: Context) {
         connection = null
     }
 
-    suspend fun showSurroundings(gpxUri: Uri, gpxData: String, lat: Double, lon: Double) {
+    suspend fun showSurroundings(gpxUri: Uri, lat: Double, lon: Double) {
         val aidl = osmandService ?: return
 
         withContext(Dispatchers.IO) {
             try {
-                // Grant URI Permission to OsmAnd packages to be able to read it
-                context.grantUriPermission("net.osmand.plus", gpxUri, Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
-                context.grantUriPermission("net.osmand", gpxUri, Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
-
+                // To avoid intent-firing confirmations, use the official aidl file imports.
                 val importParams = ImportGpxParams(gpxUri, "cellular_surround.gpx", "red", true)
                 val importSuccess = aidl.importGpx(importParams)
 
