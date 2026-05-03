@@ -181,6 +181,9 @@ class MainActivity : AppCompatActivity() {
         binding.btnScan.isEnabled = false
 
         lifecycleScope.launch {
+            // HARDCODED OVERRIDE FOR TESTING
+            val cellInfo = TelephonyHelper.CellData("lte", 425, 2, 891, 3752991L)
+            /*
             val cellInfo = TelephonyHelper.getCurrentCellInfo(this@MainActivity)
             if (cellInfo == null) {
                 val msg = "Could not determine current cell (Check SIM / Signal)"
@@ -189,8 +192,9 @@ class MainActivity : AppCompatActivity() {
                 binding.btnScan.isEnabled = true
                 return@launch
             }
+            */
 
-            val msgConnected = "Connected to ${cellInfo.radio} MCC:${cellInfo.mcc} MNC:${cellInfo.mnc} LAC:${cellInfo.lac} CID:${cellInfo.cid}. Resolving location..."
+            val msgConnected = "HARDCODED to ${cellInfo.radio} MCC:${cellInfo.mcc} MNC:${cellInfo.mnc} LAC:${cellInfo.lac} CID:${cellInfo.cid}. Resolving location..."
             appendLog(msgConnected)
             Toast.makeText(this@MainActivity, "Resolving location...", Toast.LENGTH_SHORT).show()
 

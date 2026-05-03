@@ -23,42 +23,48 @@ object GpxGenerator {
 
         val timeString = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US).format(Date())
 
-        FileOutputStream(file).bufferedWriter().use { writer ->
-            writer.write("<?xml version='1.0' encoding='UTF-8' standalone='yes' ?>\n")
-            writer.write("<gpx version=\"1.1\" creator=\"OsmAnd Cellular Surround\" xmlns=\"http://www.topografix.com/GPX/1/1\" xmlns:osmand=\"https://osmand.net/docs/technical/osmand-file-formats/osmand-gpx\">\n")
+        val gpxStr = StringBuilder()
 
-            writer.write("  <metadata>\n")
-            writer.write("    <name>cellular_surround</name>\n")
-            writer.write("  </metadata>\n")
+        gpxStr.append("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\" ?>\n")
+        gpxStr.append("<gpx version=\"1.1\" creator=\"OsmAnd Cellular Surround\" xmlns=\"http://www.topografix.com/GPX/1/1\" xmlns:osmand=\"https://osmand.net/docs/technical/osmand-file-formats/osmand-gpx\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xsi:schemaLocation=\"http://www.topografix.com/GPX/1/1 https://www.topografix.com/GPX/1/1/gpx.xsd\">\n")
 
-            // Main connected tower (highlighted in description or color)
-            writer.write("  <wpt lat=\"${mainTower.lat}\" lon=\"${mainTower.lon}\">\n")
-            writer.write("    <time>$timeString</time>\n")
-            writer.write("    <name>Connected: ${mainTower.mcc}-${mainTower.mnc}-${mainTower.lac}-${mainTower.cid}</name>\n")
-            writer.write("    <desc>Currently Connected Cell Tower</desc>\n")
-            writer.write("    <type>main_tower</type>\n")
-            writer.write("  </wpt>\n")
+        gpxStr.append("  <metadata>\n")
+        gpxStr.append("    <name>cellular_surround</name>\n")
+        gpxStr.append("  </metadata>\n")
 
-            // Surrounding towers
-            for (tower in surroundingTowers) {
-                // Don't duplicate the main tower
-                if (tower.mcc == mainTower.mcc && tower.mnc == mainTower.mnc && tower.cid == mainTower.cid) continue
+        // Main connected tower (highlighted in description or color)
+        gpxStr.append("  <wpt lat=\"${mainTower.lat}\" lon=\"${mainTower.lon}\">\n")
+        gpxStr.append("    <time>$timeString</time>\n")
+        gpxStr.append("    <name>Connected: ${mainTower.mcc}-${mainTower.mnc}-${mainTower.lac}-${mainTower.cid}</name>\n")
+        gpxStr.append("    <desc>Currently Connected Cell Tower</desc>\n")
+        gpxStr.append("    <type>main_tower</type>\n")
+        gpxStr.append("  </wpt>\n")
 
-                writer.write("  <wpt lat=\"${tower.lat}\" lon=\"${tower.lon}\">\n")
-                writer.write("    <name>${tower.mcc}-${tower.mnc}-${tower.lac}-${tower.cid}</name>\n")
-                writer.write("    <type>surrounding_tower</type>\n")
-                writer.write("  </wpt>\n")
-            }
+        // Surrounding towers
+        for (tower in surroundingTowers) {
+            // Don't duplicate the main tower
+            if (tower.mcc == mainTower.mcc && tower.mnc == mainTower.mnc && tower.cid == mainTower.cid) continue
 
-            writer.write("  <extensions>\n")
-            writer.write("    <osmand:color>#FF0000</osmand:color>\n")
-            writer.write("    <osmand:points_groups>\n")
-            writer.write("      <group name=\"main_tower\" icon=\"radio_tower\" background=\"circle\" color=\"#FF0000\" />\n")
-            writer.write("      <group name=\"surrounding_tower\" icon=\"radio_tower\" background=\"circle\" color=\"#0000FF\" />\n")
-            writer.write("    </osmand:points_groups>\n")
-            writer.write("  </extensions>\n")
+            gpxStr.append("  <wpt lat=\"${tower.lat}\" lon=\"${tower.lon}\">\n")
+            gpxStr.append("    <name>${tower.mcc}-${tower.mnc}-${tower.lac}-${tower.cid}</name>\n")
+            gpxStr.append("    <type>surrounding_tower</type>\n")
+            gpxStr.append("  </wpt>\n")
+        }
 
-            writer.write("</gpx>")
+        gpxStr.append("  <extensions>\n")
+        gpxStr.append("    <osmand:show_start_finish>false</osmand:show_start_finish>\n")
+        gpxStr.append("    <osmand:show_arrows>true</osmand:show_arrows>\n")
+        gpxStr.append("    <osmand:color>#FF0000</osmand:color>\n")
+        gpxStr.append("    <osmand:points_groups>\n")
+        gpxStr.append("      <group name=\"main_tower\" icon=\"radio_tower\" background=\"circle\" color=\"#FF0000\" />\n")
+        gpxStr.append("      <group name=\"surrounding_tower\" icon=\"radio_tower\" background=\"circle\" color=\"#0000FF\" />\n")
+        gpxStr.append("    </osmand:points_groups>\n")
+        gpxStr.append("  </extensions>\n")
+
+        gpxStr.append("</gpx>")
+
+        FileOutputStream(file).use {
+            it.write(gpxStr.toString().toByteArray())
         }
 
         val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
