@@ -80,12 +80,16 @@ class OsmAndHelper(private val context: Context) {
 
                 // To avoid intent-firing confirmations, use the official aidl file imports.
                 val file = java.io.File(context.cacheDir, "cellular_surround.gpx")
-                val importParams = ImportGpxParams(file, "cellular_surround.gpx", "red", true)
+                // Using raw data string since Uri across processes without intent flag can sometimes fail depending on Android version
+                val rawData = file.readText()
+                val importParams = ImportGpxParams(rawData, "cellular_surround.gpx", "red", true)
                 val importSuccess = aidl.importGpx(importParams)
                 logger("OsmAndHelper: Imported new GPX: $importSuccess")
 
                 if (importSuccess) {
                     val showParams = ShowGpxParams("cellular_surround.gpx")
+                    // Show might need the relative path / cache path depending on OsmAnd version.
+                    // In AIDL it looks up by the name.
                     val showSuccess = aidl.showGpx(showParams)
                     logger("OsmAndHelper: Showed GPX: $showSuccess")
                 }
