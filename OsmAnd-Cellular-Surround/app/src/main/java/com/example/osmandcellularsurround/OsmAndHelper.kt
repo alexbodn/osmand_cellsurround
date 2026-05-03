@@ -79,7 +79,8 @@ class OsmAndHelper(private val context: Context) {
                 logger("OsmAndHelper: Removed old GPX: $removeSuccess")
 
                 // To avoid intent-firing confirmations, use the official aidl file imports.
-                val importParams = ImportGpxParams(gpxUri, "cellular_surround.gpx", "red", true)
+                val file = java.io.File(context.cacheDir, "cellular_surround.gpx")
+                val importParams = ImportGpxParams(file, "cellular_surround.gpx", "red", true)
                 val importSuccess = aidl.importGpx(importParams)
                 logger("OsmAndHelper: Imported new GPX: $importSuccess")
 
