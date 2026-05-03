@@ -110,6 +110,51 @@ class MainActivity : AppCompatActivity() {
             clipboard.setPrimaryClip(clip)
             Toast.makeText(this, "Log copied to clipboard", Toast.LENGTH_SHORT).show()
         }
+
+        binding.btnRunSql.setOnClickListener {
+            val sql = binding.etSql.text.toString().trim()
+            if (sql.isNotEmpty()) {
+                runSql(sql)
+            }
+        }
+    }
+
+    private fun runSql(sql: String) {
+        appendLog("\n--- Running SQL ---")
+        appendLog("Query: $sql")
+
+        lifecycleScope.launch {
+            withContext(Dispatchers.IO) {
+                try {
+                    val db = AppDatabase.getDatabase(this@MainActivity).openHelper.readableDatabase
+                    val cursor = db.query(sql)
+                    val columns = cursor.columnNames
+                    appendLog(columns.joinToString(" | "))
+
+                    var count = 0
+                    while (cursor.moveToNext() && count < 100) { // limit output so we don't crash the textview
+                        val row = StringBuilder()
+                        for (i in columns.indices) {
+                            val value = try {
+                                cursor.getString(i)
+                            } catch (e: Exception) {
+                                "blob"
+                            }
+                            row.append(value).append(" | ")
+                        }
+                        appendLog(row.toString())
+                        count++
+                    }
+                    if (cursor.moveToNext()) {
+                        appendLog("... (results truncated to 100 rows)")
+                    }
+                    cursor.close()
+                    appendLog("--- End SQL ---")
+                } catch (e: Exception) {
+                    appendLog("SQL Error: ${e.message}")
+                }
+            }
+        }
     }
 
     private fun hasPermissions(): Boolean {

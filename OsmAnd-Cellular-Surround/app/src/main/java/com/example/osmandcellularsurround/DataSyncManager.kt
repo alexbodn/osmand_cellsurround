@@ -49,16 +49,6 @@ class DataSyncManager(private val context: Context) {
                 dao.insert(tower)
             } else {
                 logger("API Result: Null/Failed.")
-                // 4. Last Resort: fallback to LAC/TAC level location so we can at least show surrounding towers
-                logger("DB Query: getAnyTowerInLac(mcc=$mcc, mnc=$mnc, lac=$lac)")
-                val lacTower = dao.getAnyTowerInLac(mcc, mnc, lac)
-                if (lacTower != null) {
-                    logger("DB Result: Found a fallback tower in LAC $lac at lat=${lacTower.lat} lon=${lacTower.lon}")
-                    // Create a synthetic tower entry purely to center the map
-                    tower = CellTower(mcc = mcc, mnc = mnc, lac = lac, cid = cid, lat = lacTower.lat, lon = lacTower.lon)
-                } else {
-                    logger("DB Result: No fallback towers found in LAC $lac.")
-                }
             }
 
             return@withContext tower

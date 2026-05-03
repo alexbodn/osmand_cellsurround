@@ -27,7 +27,6 @@ object OpenCellidApi {
                         "mcc": $mcc,
                         "mnc": $mnc,
                         "cells": [{
-                            "lac": $lac,
                             "cid": $cid
                         }]
                     }
