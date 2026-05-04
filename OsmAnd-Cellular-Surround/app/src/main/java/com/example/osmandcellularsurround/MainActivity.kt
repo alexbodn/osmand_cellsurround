@@ -297,8 +297,9 @@ class MainActivity : AppCompatActivity() {
 
             val connected = osmandHelper.connect()
             if (connected) {
-                val zoomDouble = 15.0 - (Math.log(radiusKm / 0.5) / Math.log(2.0))
-                val zoomLevel = Math.max(2, Math.min(20, zoomDouble.toInt()))
+                // Zoom level heuristic: +1 zoom zooms in by 2x. We add 1.0 to fit the bounds tighter.
+                val zoomDouble = 16.0 - (Math.log(radiusKm / 0.5) / Math.log(2.0))
+                val zoomLevel = Math.max(2, Math.min(20, Math.round(zoomDouble).toInt()))
 
                 withContext(Dispatchers.Main) {
                     osmandHelper.showSurroundings(gpxUri, mainTower.lat, mainTower.lon, zoomLevel) { logMsg ->
