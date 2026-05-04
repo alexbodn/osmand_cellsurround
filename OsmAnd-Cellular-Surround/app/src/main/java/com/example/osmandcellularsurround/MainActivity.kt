@@ -297,8 +297,13 @@ class MainActivity : AppCompatActivity() {
 
             val connected = osmandHelper.connect()
             if (connected) {
+                // Calculate zoom level. 15 is roughly 0.5km. log2(15 / radius) is a decent heuristic.
+                // 0.5km -> ~15, 1.0km -> ~14, 2.0km -> ~13, 4.0km -> ~12, 10km -> ~10.7 (round down or up), etc.
+                val zoomDouble = 15.0 - (Math.log(radiusKm / 0.5) / Math.log(2.0))
+                val zoomLevel = Math.max(2, Math.min(20, zoomDouble.toInt()))
+
                 withContext(Dispatchers.Main) {
-                    osmandHelper.showSurroundings(gpxUri, mainTower.lat, mainTower.lon) { logMsg ->
+                    osmandHelper.showSurroundings(gpxUri, mainTower.lat, mainTower.lon, zoomLevel) { logMsg ->
                         appendLog(logMsg)
                     }
                     val msgDone = "Done. Check OsmAnd."
