@@ -35,6 +35,12 @@ class MainActivity : AppCompatActivity() {
     private val KEY_API_KEY = "api_key"
     private val KEY_RADIUS = "scan_radius"
 
+    // To hold latest values for SQL execution
+    private var currentMinLat: Double = 0.0
+    private var currentMaxLat: Double = 0.0
+    private var currentMinLon: Double = 0.0
+    private var currentMaxLon: Double = 0.0
+
     private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { permissions ->
@@ -119,15 +125,57 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    override fun onResume() {
+        super.onResume()
+        if (hasPermissions()) {
+            val cellInfo = TelephonyHelper.getCurrentCellInfo(this)
+            if (cellInfo != null) {
+                // Populate if it's currently empty
+                if (binding.etCellInfo.text.toString().trim().isEmpty()) {
+                    val infoStr = "${cellInfo.radio},${cellInfo.mcc},${cellInfo.mnc},${cellInfo.lac},${cellInfo.cid}"
+                    binding.etCellInfo.setText(infoStr)
+                }
+            }
+        }
+    }
+
     private fun runSql(sql: String) {
         appendLog("\n--- Running SQL ---")
-        appendLog("Query: $sql")
+
+        var parsedRadio = ""
+        var parsedMcc = ""
+        var parsedMnc = ""
+        var parsedLac = ""
+        var parsedCid = ""
+
+        val cellInfoStr = binding.etCellInfo.text.toString().trim()
+        val parts = cellInfoStr.split(",")
+        if (parts.size == 5) {
+            parsedRadio = parts[0].trim()
+            parsedMcc = parts[1].trim()
+            parsedMnc = parts[2].trim()
+            parsedLac = parts[3].trim()
+            parsedCid = parts[4].trim()
+        }
+
+        val finalSql = sql
+            .replace(":radio", "'$parsedRadio'")
+            .replace(":mcc", parsedMcc.ifEmpty { "0" })
+            .replace(":mnc", parsedMnc.ifEmpty { "0" })
+            .replace(":lac", parsedLac.ifEmpty { "0" })
+            .replace(":cid", parsedCid.ifEmpty { "0" })
+            .replace(":minLat", currentMinLat.toString())
+            .replace(":maxLat", currentMaxLat.toString())
+            .replace(":minLon", currentMinLon.toString())
+            .replace(":maxLon", currentMaxLon.toString())
+
+        appendLog("Query: $finalSql")
 
         lifecycleScope.launch {
             withContext(Dispatchers.IO) {
                 try {
                     val db = AppDatabase.getDatabase(this@MainActivity).openHelper.readableDatabase
-                    val cursor = db.query(sql)
+                    val cursor = db.query(finalSql)
                     val columns = cursor.columnNames
                     appendLog(columns.joinToString(" | "))
 
@@ -175,42 +223,55 @@ class MainActivity : AppCompatActivity() {
     private fun performScan() {
         val apiKey = sharedPrefs.getString(KEY_API_KEY, "") ?: return
 
+        val cellInfoStr = binding.etCellInfo.text.toString().trim()
+        if (cellInfoStr.isEmpty()) {
+            Toast.makeText(this, "Please enter cellular info in the text field.", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        val parts = cellInfoStr.split(",")
+        if (parts.size != 5) {
+            Toast.makeText(this, "Invalid cellular info format. Use: radio,mcc,mnc,lac,cid", Toast.LENGTH_LONG).show()
+            return
+        }
+
+        val parsedRadio = parts[0].trim()
+        val parsedMcc = parts[1].trim().toIntOrNull()
+        val parsedMnc = parts[2].trim().toIntOrNull()
+        val parsedLac = parts[3].trim().toIntOrNull()
+        val parsedCid = parts[4].trim().toLongOrNull()
+
+        if (parsedMcc == null || parsedMnc == null || parsedLac == null || parsedCid == null) {
+            Toast.makeText(this, "Invalid cellular info numbers.", Toast.LENGTH_LONG).show()
+            return
+        }
+
         binding.tvStatus.text = ""
-        appendLog("Status: Scanning current cell...")
-        Toast.makeText(this, "Scanning current cell...", Toast.LENGTH_SHORT).show()
+        appendLog("Status: Scanning edited cell data...")
+        Toast.makeText(this, "Scanning edited cell data...", Toast.LENGTH_SHORT).show()
         binding.btnScan.isEnabled = false
 
         lifecycleScope.launch {
 
 
 
-            val cellInfo = TelephonyHelper.getCurrentCellInfo(this@MainActivity)
-            if (cellInfo == null) {
-                val msg = "Could not determine current cell (Check SIM / Signal)"
-                appendLog(msg)
-                Toast.makeText(this@MainActivity, msg, Toast.LENGTH_LONG).show()
-                binding.btnScan.isEnabled = true
-                return@launch
-            }
-
-
-            val msgConnected = "Connected to ${cellInfo.radio} MCC:${cellInfo.mcc} MNC:${cellInfo.mnc} LAC:${cellInfo.lac} CID:${cellInfo.cid}. Resolving location..."
+            val msgConnected = "Resolving location for $parsedRadio MCC:$parsedMcc MNC:$parsedMnc LAC:$parsedLac CID:$parsedCid..."
             appendLog(msgConnected)
             Toast.makeText(this@MainActivity, "Resolving location...", Toast.LENGTH_SHORT).show()
 
             val mainTower = dataSyncManager.ensureCellTowerExistsAndGet(
                 apiKey,
-                cellInfo.radio,
-                cellInfo.mcc,
-                cellInfo.mnc,
-                cellInfo.lac,
-                cellInfo.cid
+                parsedRadio,
+                parsedMcc,
+                parsedMnc,
+                parsedLac,
+                parsedCid
             ) { logMsg ->
                 appendLog(logMsg)
             }
 
             if (mainTower == null) {
-                val msgFailed = "Failed to resolve location for MCC:${cellInfo.mcc} MNC:${cellInfo.mnc} LAC:${cellInfo.lac} CID:${cellInfo.cid}. Please consider donating data to OpenCelliD!"
+                val msgFailed = "Failed to resolve location for MCC:$parsedMcc MNC:$parsedMnc LAC:$parsedLac CID:$parsedCid. Please consider donating data to OpenCelliD!"
                 appendLog(msgFailed)
                 Toast.makeText(this@MainActivity, msgFailed, Toast.LENGTH_LONG).show()
                 binding.btnScan.isEnabled = true
@@ -228,6 +289,11 @@ class MainActivity : AppCompatActivity() {
             val maxLat = boundingBox[1]
             val minLon = boundingBox[2]
             val maxLon = boundingBox[3]
+
+            currentMinLat = minLat
+            currentMaxLat = maxLat
+            currentMinLon = minLon
+            currentMaxLon = maxLon
 
             val dao = AppDatabase.getDatabase(this@MainActivity).cellTowerDao()
             appendLog("DB Query: getTowersInBoundingBox($minLat, $maxLat, $minLon, $maxLon)")
