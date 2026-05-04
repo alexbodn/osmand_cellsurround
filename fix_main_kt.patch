@@ -1,0 +1,10 @@
+--- a/OsmAnd-Cellular-Surround/app/src/main/java/com/example/osmandcellularsurround/MainActivity.kt
++++ b/OsmAnd-Cellular-Surround/app/src/main/java/com/example/osmandcellularsurround/MainActivity.kt
+@@ -213,8 +213,6 @@
+             .replace(":maxLon", currentMaxLon.toString())
+
+         appendSqlResult("Query: $finalSql")
+-        appendSqlResult("Query: $sql")
+
+         lifecycleScope.launch {
+             withContext(Dispatchers.IO) {

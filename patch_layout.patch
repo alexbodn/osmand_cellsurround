@@ -73,11 +73,7 @@
          android:layout_marginTop="16dp"
          android:textSize="12sp"
          app:layout_constraintTop_toBottomOf="@id/tvCredit" />
-<<<<<<< HEAD
 
-=======
-
->>>>>>> fix-pr-4
      <LinearLayout
          android:id="@+id/llApiKey"
          android:layout_width="match_parent"
@@ -85,21 +81,13 @@
          android:orientation="horizontal"
          android:layout_marginTop="4dp"
          app:layout_constraintTop_toBottomOf="@id/tvApiKeyLabel">
-<<<<<<< HEAD
 
-=======
-
->>>>>>> fix-pr-4
          <com.google.android.material.textfield.TextInputLayout
              android:id="@+id/tilApiKey"
              android:layout_width="0dp"
              android:layout_weight="1"
              android:layout_height="wrap_content">
-<<<<<<< HEAD
 
-=======
-
->>>>>>> fix-pr-4
              <com.google.android.material.textfield.TextInputEditText
                  android:id="@+id/etApiKey"
                  android:layout_width="match_parent"
@@ -108,11 +96,7 @@
                  android:textSize="12sp"
                   />
          </com.google.android.material.textfield.TextInputLayout>
-<<<<<<< HEAD
 
-=======
-
->>>>>>> fix-pr-4
          <Button
              android:id="@+id/btnSaveApiKey"
              android:layout_width="wrap_content"
@@ -121,7 +105,7 @@
              android:layout_marginStart="8dp"
              android:layout_gravity="center_vertical" />
      </LinearLayout>
-->>>>>>> origin/main
+->>>>>>> main
 +
 +    <TextView
 +        android:id="@+id/tvCellInfoLabel"
@@ -142,11 +126,7 @@
 +        app:layout_constraintTop_toBottomOf="@id/tvCellInfoLabel"
 +        app:layout_constraintStart_toStartOf="parent"
 +        app:layout_constraintEnd_toEndOf="parent" />
-<<<<<<< HEAD
 
-=======
-
->>>>>>> fix-pr-4
      <LinearLayout
          android:id="@+id/llRadius"
          android:layout_width="match_parent"
@@ -155,22 +135,14 @@
          android:layout_marginTop="16dp"
 -        app:layout_constraintTop_toBottomOf="@id/llApiKey">
 +        app:layout_constraintTop_toBottomOf="@id/etCellInfo">
-<<<<<<< HEAD
 
-=======
-
->>>>>>> fix-pr-4
          <TextView
              android:id="@+id/tvRadiusLabel"
              android:layout_width="wrap_content"
              android:layout_height="wrap_content"
              android:text="Scan Radius:"
              android:layout_gravity="center_vertical" />
-<<<<<<< HEAD
 
-=======
-
->>>>>>> fix-pr-4
          <Spinner
              android:id="@+id/spinnerRadius"
              android:layout_width="0dp"
@@ -184,12 +156,8 @@
              android:layout_marginStart="16dp"
              android:layout_gravity="center_vertical" />
      </LinearLayout>
-->>>>>>> origin/main
-<<<<<<< HEAD
+->>>>>>> main
 
-=======
-
->>>>>>> fix-pr-4
      <com.google.android.material.tabs.TabLayout
          android:id="@+id/tabLayout"
          android:layout_width="match_parent"
@@ -203,11 +171,7 @@
 +                    android:text="SELECT * FROM cell_towers WHERE lat BETWEEN :minLat AND :maxLat AND lon BETWEEN :minLon AND :maxLon"
 +                    android:hint="SQL Query"
                      android:textSize="12sp" />
-<<<<<<< HEAD
 
-=======
-
->>>>>>> fix-pr-4
                  <Button
                      android:id="@+id/btnRunSql"
                      android:layout_width="wrap_content"
