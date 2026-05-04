@@ -9,6 +9,8 @@ import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import android.view.View
+import android.text.method.LinkMovementMethod
+import androidx.core.text.HtmlCompat
 import com.google.android.material.tabs.TabLayout
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
@@ -52,8 +54,14 @@ class MainActivity : AppCompatActivity() {
         OpenCellidApi.init(this)
         OpenCellidDownloader.init(this)
         super.onCreate(savedInstanceState)
+
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
+
+        // Setup API Key label with clickable link
+        binding.tvApiKeyLabel.text = HtmlCompat.fromHtml(getString(R.string.api_key_label), HtmlCompat.FROM_HTML_MODE_COMPACT)
+        binding.tvApiKeyLabel.movementMethod = LinkMovementMethod.getInstance()
+
 
         sharedPrefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         osmandHelper = OsmAndHelper(this)

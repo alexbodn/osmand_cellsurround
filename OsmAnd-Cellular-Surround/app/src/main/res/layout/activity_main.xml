@@ -32,13 +32,21 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent" />
 
+    <TextView
+        android:id="@+id/tvApiKeyLabel"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:textSize="12sp"
+        app:layout_constraintTop_toBottomOf="@id/tvCredit" />
+
     <LinearLayout
         android:id="@+id/llApiKey"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
-        android:layout_marginTop="16dp"
-        app:layout_constraintTop_toBottomOf="@id/tvCredit">
+        android:layout_marginTop="4dp"
+        app:layout_constraintTop_toBottomOf="@id/tvApiKeyLabel">
 
         <com.google.android.material.textfield.TextInputLayout
             android:id="@+id/tilApiKey"
@@ -52,7 +60,7 @@
                 android:layout_height="wrap_content"
                 android:inputType="textPassword"
                 android:textSize="12sp"
-                android:hint="@string/api_key_hint" />
+                 />
         </com.google.android.material.textfield.TextInputLayout>
 
         <Button
