@@ -2,5 +2,5 @@
 <resources>
     <string name="app_name">OsmAnd Cellular Surround</string>
     <string name="opencellid_attribution">© OpenCelliD Project is licensed under a Creative Commons Attribution-ShareAlike 4.0 International License.</string>
-    <string name="api_key_hint">API Key (Please register at OpenCelliD.org to get a free API Key)</string>
+    <string name="api_key_hint">API Key\n(Register at OpenCelliD.org)</string>
 </resources>

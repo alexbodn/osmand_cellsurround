@@ -257,11 +257,14 @@ class MainActivity : AppCompatActivity() {
                 return@launch
             }
 
-            val radiusPosition = sharedPrefs.getInt(KEY_RADIUS, 0)
+            val radiusPosition = binding.spinnerRadius.selectedItemPosition
+            // Save it just in case they didn't hit Save Key
+            sharedPrefs.edit().putInt(KEY_RADIUS, radiusPosition).apply()
+
             val radiusValues = arrayOf(0.5, 1.0, 1.5, 2.5, 4.0, 5.0, 7.0, 10.0, 15.0, 20.0)
             val radiusKm = if (radiusPosition in radiusValues.indices) radiusValues[radiusPosition] else 4.0
 
-            val msgRadius = "Finding surrounding towers (${radiusKm.toInt()}km radius)..."
+            val msgRadius = "Finding surrounding towers (${radiusKm}km radius)..."
             appendLog(msgRadius)
 
             val boundingBox = GpxGenerator.calculateBoundingBox(mainTower.lat, mainTower.lon, radiusKm)

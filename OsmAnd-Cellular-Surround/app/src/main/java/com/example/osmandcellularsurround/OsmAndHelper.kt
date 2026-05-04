@@ -7,6 +7,7 @@ import android.content.ServiceConnection
 import android.net.Uri
 import android.os.IBinder
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import net.osmand.aidlapi.IOsmAndAidlInterface
 import net.osmand.aidlapi.gpx.ImportGpxParams
@@ -91,16 +92,21 @@ class OsmAndHelper(private val context: Context) {
                     logger("OsmAndHelper: Showed GPX: $showSuccess")
                 }
 
-                val locationParams = SetMapLocationParams(lat, lon, 15, 0f, true)
-                val locSuccess = aidl.setMapLocation(locationParams)
-                logger("OsmAndHelper: Set Map Location: $locSuccess")
-
                 val packageManager = context.packageManager
                 val launchIntent = packageManager.getLaunchIntentForPackage("net.osmand.plus")
                     ?: packageManager.getLaunchIntentForPackage("net.osmand")
                 if (launchIntent != null) {
+                    launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
                     context.startActivity(launchIntent)
+                    logger("OsmAndHelper: Launched app intent")
                 }
+
+                // Wait for the app to come to foreground before panning
+                delay(1000)
+
+                val locationParams = SetMapLocationParams(lat, lon, 15, 0f, true)
+                val locSuccess = aidl.setMapLocation(locationParams)
+                logger("OsmAndHelper: Set Map Location: $locSuccess")
             } catch (e: Exception) {
                 logger("OsmAndHelper: Exception during AIDL communication: ${e.message}")
                 e.printStackTrace()
