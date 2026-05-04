@@ -69,7 +69,7 @@ class OsmAndHelper(private val context: Context) {
         connection = null
     }
 
-    suspend fun showSurroundings(gpxUri: Uri, lat: Double, lon: Double, zoom: Int, logger: (String) -> Unit) {
+    suspend fun showSurroundings(gpxUri: Uri, lat: Double, lon: Double, logger: (String) -> Unit) {
         val aidl = osmandService ?: return
 
         withContext(Dispatchers.IO) {
@@ -104,7 +104,7 @@ class OsmAndHelper(private val context: Context) {
                 // Wait for the app to come to foreground before panning
                 delay(1000)
 
-                val locationParams = SetMapLocationParams(lat, lon, zoom, 0f, true)
+                val locationParams = SetMapLocationParams(lat, lon, 15, 0f, true)
                 val locSuccess = aidl.setMapLocation(locationParams)
                 logger("OsmAndHelper: Set Map Location: $locSuccess")
             } catch (e: Exception) {
