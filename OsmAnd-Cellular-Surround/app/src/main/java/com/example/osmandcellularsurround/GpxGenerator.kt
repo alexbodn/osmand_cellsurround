@@ -32,12 +32,14 @@ object GpxGenerator {
         gpxStr.append("    <name>cellular_surround</name>\n")
         gpxStr.append("  </metadata>\n")
 
-        // Main connected tower (highlighted in description or color)
+        // Main connected tower (highlighted in color)
         gpxStr.append("  <wpt lat=\"${mainTower.lat}\" lon=\"${mainTower.lon}\">\n")
         gpxStr.append("    <time>$timeString</time>\n")
-        gpxStr.append("    <name>Connected: ${mainTower.mcc}-${mainTower.mnc}-${mainTower.lac}-${mainTower.cid}</name>\n")
-        gpxStr.append("    <desc>Currently Connected Cell Tower</desc>\n")
+        gpxStr.append("    <desc>${mainTower.mcc}-${mainTower.mnc}-${mainTower.lac}-${mainTower.cid}</desc>\n")
         gpxStr.append("    <type>main_tower</type>\n")
+        gpxStr.append("    <extensions>\n")
+        gpxStr.append("      <osmand:color>#00FF00</osmand:color>\n")
+        gpxStr.append("    </extensions>\n")
         gpxStr.append("  </wpt>\n")
 
         // Surrounding towers
@@ -46,8 +48,11 @@ object GpxGenerator {
             if (tower.mcc == mainTower.mcc && tower.mnc == mainTower.mnc && tower.cid == mainTower.cid) continue
 
             gpxStr.append("  <wpt lat=\"${tower.lat}\" lon=\"${tower.lon}\">\n")
-            gpxStr.append("    <name>${tower.mcc}-${tower.mnc}-${tower.lac}-${tower.cid}</name>\n")
+            gpxStr.append("    <desc>${tower.mcc}-${tower.mnc}-${tower.lac}-${tower.cid}</desc>\n")
             gpxStr.append("    <type>surrounding_tower</type>\n")
+            gpxStr.append("    <extensions>\n")
+            gpxStr.append("      <osmand:color>#0000FF</osmand:color>\n")
+            gpxStr.append("    </extensions>\n")
             gpxStr.append("  </wpt>\n")
         }
 
@@ -56,7 +61,7 @@ object GpxGenerator {
         gpxStr.append("    <osmand:show_arrows>true</osmand:show_arrows>\n")
         gpxStr.append("    <osmand:color>#FF0000</osmand:color>\n")
         gpxStr.append("    <osmand:points_groups>\n")
-        gpxStr.append("      <group name=\"main_tower\" icon=\"radio_tower\" background=\"circle\" color=\"#FF0000\" />\n")
+        gpxStr.append("      <group name=\"main_tower\" icon=\"radio_tower\" background=\"circle\" color=\"#00FF00\" />\n")
         gpxStr.append("      <group name=\"surrounding_tower\" icon=\"radio_tower\" background=\"circle\" color=\"#0000FF\" />\n")
         gpxStr.append("    </osmand:points_groups>\n")
         gpxStr.append("  </extensions>\n")

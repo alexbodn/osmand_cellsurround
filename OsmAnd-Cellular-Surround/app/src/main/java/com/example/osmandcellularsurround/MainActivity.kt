@@ -8,6 +8,10 @@ import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import android.view.View
+import android.text.method.LinkMovementMethod
+import androidx.core.text.HtmlCompat
+import com.google.android.material.tabs.TabLayout
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.coroutineScope
@@ -50,8 +54,14 @@ class MainActivity : AppCompatActivity() {
         OpenCellidApi.init(this)
         OpenCellidDownloader.init(this)
         super.onCreate(savedInstanceState)
+
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
+
+        // Setup API Key label with clickable link
+        binding.tvApiKeyLabel.text = HtmlCompat.fromHtml(getString(R.string.api_key_label), HtmlCompat.FROM_HTML_MODE_COMPACT)
+        binding.tvApiKeyLabel.movementMethod = LinkMovementMethod.getInstance()
+
 
         sharedPrefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         osmandHelper = OsmAndHelper(this)
@@ -66,6 +76,26 @@ class MainActivity : AppCompatActivity() {
             adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
             binding.spinnerRadius.adapter = adapter
         }
+        // Setup TabLayout
+        binding.tabLayout.addOnTabSelectedListener(object : TabLayout.OnTabSelectedListener {
+            override fun onTabSelected(tab: TabLayout.Tab?) {
+                when (tab?.position) {
+                    0 -> {
+                        binding.scrollViewStatus.visibility = View.VISIBLE
+                        binding.llSqlContainer.visibility = View.GONE
+                        binding.btnCopyLog.text = "Copy Log"
+                    }
+                    1 -> {
+                        binding.scrollViewStatus.visibility = View.GONE
+                        binding.llSqlContainer.visibility = View.VISIBLE
+                        binding.btnCopyLog.text = "Copy SQL Result"
+                    }
+                }
+            }
+            override fun onTabUnselected(tab: TabLayout.Tab?) {}
+            override fun onTabReselected(tab: TabLayout.Tab?) {}
+        })
+
 
         // Load saved preferences
         val savedKey = sharedPrefs.getString(KEY_API_KEY, "")
@@ -106,9 +136,13 @@ class MainActivity : AppCompatActivity() {
 
         binding.btnCopyLog.setOnClickListener {
             val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-            val clip = ClipData.newPlainText("OsmAnd Cellular Log", binding.tvStatus.text)
+            val isSqlTab = binding.tabLayout.selectedTabPosition == 1
+            val textToCopy = if (isSqlTab) binding.tvSqlResult.text else binding.tvStatus.text
+            val label = if (isSqlTab) "OsmAnd Cellular SQL Result" else "OsmAnd Cellular Log"
+            val clip = ClipData.newPlainText(label, textToCopy)
             clipboard.setPrimaryClip(clip)
-            Toast.makeText(this, "Log copied to clipboard", Toast.LENGTH_SHORT).show()
+            val toastMsg = if (isSqlTab) "SQL Result copied to clipboard" else "Log copied to clipboard"
+            Toast.makeText(this, toastMsg, Toast.LENGTH_SHORT).show()
         }
 
         binding.btnRunSql.setOnClickListener {
@@ -119,9 +153,23 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun appendSqlResult(msg: String, clear: Boolean = false) {
+        runOnUiThread {
+            if (clear) {
+                binding.tvSqlResult.text = msg
+            } else {
+                val current = binding.tvSqlResult.text.toString()
+                binding.tvSqlResult.text = "$current\n$msg"
+            }
+            binding.scrollViewSqlResult.post {
+                binding.scrollViewSqlResult.fullScroll(View.FOCUS_DOWN)
+            }
+        }
+    }
+
     private fun runSql(sql: String) {
-        appendLog("\n--- Running SQL ---")
-        appendLog("Query: $sql")
+        appendSqlResult("--- Running SQL ---", clear = true)
+        appendSqlResult("Query: $sql")
 
         lifecycleScope.launch {
             withContext(Dispatchers.IO) {
@@ -129,7 +177,7 @@ class MainActivity : AppCompatActivity() {
                     val db = AppDatabase.getDatabase(this@MainActivity).openHelper.readableDatabase
                     val cursor = db.query(sql)
                     val columns = cursor.columnNames
-                    appendLog(columns.joinToString(" | "))
+                    appendSqlResult(columns.joinToString(" | "))
 
                     var count = 0
                     while (cursor.moveToNext() && count < 100) { // limit output so we don't crash the textview
@@ -142,16 +190,16 @@ class MainActivity : AppCompatActivity() {
                             }
                             row.append(value).append(" | ")
                         }
-                        appendLog(row.toString())
+                        appendSqlResult(row.toString())
                         count++
                     }
                     if (cursor.moveToNext()) {
-                        appendLog("... (results truncated to 100 rows)")
+                        appendSqlResult("... (results truncated to 100 rows)")
                     }
                     cursor.close()
-                    appendLog("--- End SQL ---")
+                    appendSqlResult("--- End SQL ---")
                 } catch (e: Exception) {
-                    appendLog("SQL Error: ${e.message}")
+                    appendSqlResult("SQL Error: ${e.message}")
                 }
             }
         }
@@ -217,10 +265,14 @@ class MainActivity : AppCompatActivity() {
                 return@launch
             }
 
-            val radiusPosition = sharedPrefs.getInt(KEY_RADIUS, 0)
-            val radiusKm = if (radiusPosition == 1) 20.0 else 4.0
+            val radiusPosition = binding.spinnerRadius.selectedItemPosition
+            // Save it just in case they didn't hit Save Key
+            sharedPrefs.edit().putInt(KEY_RADIUS, radiusPosition).apply()
 
-            val msgRadius = "Finding surrounding towers (${radiusKm.toInt()}km radius)..."
+            val radiusValues = arrayOf(0.5, 1.0, 1.5, 2.5, 4.0, 5.0, 7.0, 10.0, 15.0, 20.0)
+            val radiusKm = if (radiusPosition in radiusValues.indices) radiusValues[radiusPosition] else 4.0
+
+            val msgRadius = "Finding surrounding towers (${radiusKm}km radius)..."
             appendLog(msgRadius)
 
             val boundingBox = GpxGenerator.calculateBoundingBox(mainTower.lat, mainTower.lon, radiusKm)
@@ -245,8 +297,12 @@ class MainActivity : AppCompatActivity() {
 
             val connected = osmandHelper.connect()
             if (connected) {
+                // Zoom level heuristic: +1 zoom zooms in by 2x. We add 1.0 to fit the bounds tighter.
+                val zoomDouble = 16.0 - (Math.log(radiusKm / 0.5) / Math.log(2.0))
+                val zoomLevel = Math.max(2, Math.min(20, Math.round(zoomDouble).toInt()))
+
                 withContext(Dispatchers.Main) {
-                    osmandHelper.showSurroundings(gpxUri, mainTower.lat, mainTower.lon) { logMsg ->
+                    osmandHelper.showSurroundings(gpxUri, mainTower.lat, mainTower.lon, zoomLevel) { logMsg ->
                         appendLog(logMsg)
                     }
                     val msgDone = "Done. Check OsmAnd."

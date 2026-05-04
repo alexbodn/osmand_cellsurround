@@ -1,7 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string-array name="radius_options">
-        <item>4 km (Default)</item>
+        <item>0.5 km</item>
+        <item>1 km</item>
+        <item>1.5 km</item>
+        <item>2.5 km</item>
+        <item>4 km</item>
+        <item>5 km</item>
+        <item>7 km</item>
+        <item>10 km</item>
+        <item>15 km</item>
         <item>20 km</item>
     </string-array>
 </resources>
