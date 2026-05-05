@@ -19,6 +19,7 @@ import com.example.osmandcellularsurround.databinding.ActivityMainBinding
 import com.example.osmandcellularsurround.db.AppDatabase
 import com.example.osmandcellularsurround.api.OpenCellidApi
 import com.example.osmandcellularsurround.api.OpenCellidDownloader
+import androidx.sqlite.db.SimpleSQLiteQuery
 import kotlinx.coroutines.Dispatchers
 import android.widget.ArrayAdapter
 import android.content.ClipboardManager
@@ -38,6 +39,12 @@ class MainActivity : AppCompatActivity() {
     private val PREFS_NAME = "OsmAndCellularPrefs"
     private val KEY_API_KEY = "api_key"
     private val KEY_RADIUS = "scan_radius"
+
+    // To hold latest values for SQL execution
+    private var currentMinLat: Double? = null
+    private var currentMaxLat: Double? = null
+    private var currentMinLon: Double? = null
+    private var currentMaxLon: Double? = null
 
     private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
@@ -82,13 +89,11 @@ class MainActivity : AppCompatActivity() {
                 when (tab?.position) {
                     0 -> {
                         binding.scrollViewStatus.visibility = View.VISIBLE
-                        binding.llSqlContainer.visibility = View.GONE
-                        binding.btnCopyLog.text = "Copy Log"
+                        binding.scrollViewConfig.visibility = View.GONE
                     }
                     1 -> {
                         binding.scrollViewStatus.visibility = View.GONE
-                        binding.llSqlContainer.visibility = View.VISIBLE
-                        binding.btnCopyLog.text = "Copy SQL Result"
+                        binding.scrollViewConfig.visibility = View.VISIBLE
                     }
                 }
             }
@@ -96,6 +101,11 @@ class MainActivity : AppCompatActivity() {
             override fun onTabReselected(tab: TabLayout.Tab?) {}
         })
 
+
+        // Setup SQL Editor default if empty
+        if (binding.etSql.text.toString().isEmpty()) {
+            binding.etSql.setText("SELECT * FROM cell_towers WHERE case when :minLat is not null then lat BETWEEN :minLat AND :maxLat AND lon BETWEEN :minLon AND :maxLon else lac=:lac end")
+        }
 
         // Load saved preferences
         val savedKey = sharedPrefs.getString(KEY_API_KEY, "")
@@ -112,6 +122,21 @@ class MainActivity : AppCompatActivity() {
                     .putInt(KEY_RADIUS, radiusPosition)
                     .apply()
                 Toast.makeText(this, "Preferences Saved", Toast.LENGTH_SHORT).show()
+            }
+        }
+
+        binding.btnReloadCellInfo.setOnClickListener {
+            if (hasPermissions()) {
+                val cellInfo = TelephonyHelper.getCurrentCellInfo(this)
+                if (cellInfo != null) {
+                    val infoStr = "${cellInfo.radio},${cellInfo.mcc},${cellInfo.mnc},${cellInfo.lac},${cellInfo.cid}"
+                    binding.etCellInfo.setText(infoStr)
+                    Toast.makeText(this, "Reloaded cell info", Toast.LENGTH_SHORT).show()
+                } else {
+                    Toast.makeText(this, "Could not read cell info", Toast.LENGTH_SHORT).show()
+                }
+            } else {
+                Toast.makeText(this, "Permissions required", Toast.LENGTH_SHORT).show()
             }
         }
 
@@ -153,6 +178,20 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    override fun onResume() {
+        super.onResume()
+        if (hasPermissions()) {
+            val cellInfo = TelephonyHelper.getCurrentCellInfo(this)
+            if (cellInfo != null) {
+                // Populate if it's currently empty
+                if (binding.etCellInfo.text.toString().trim().isEmpty()) {
+                    val infoStr = "${cellInfo.radio},${cellInfo.mcc},${cellInfo.mnc},${cellInfo.lac},${cellInfo.cid}"
+                    binding.etCellInfo.setText(infoStr)
+                }
+            }
+        }
+    }
+
     private fun appendSqlResult(msg: String, clear: Boolean = false) {
         runOnUiThread {
             if (clear) {
@@ -167,19 +206,58 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun buildParameterizedSql(sql: String): String {
+        var parsedRadio = ""
+        var parsedMcc = ""
+        var parsedMnc = ""
+        var parsedLac = ""
+        var parsedCid = ""
+
+        val cellInfoStr = binding.etCellInfo.text.toString().trim()
+        val parts = cellInfoStr.split(",")
+        if (parts.size == 5) {
+            parsedRadio = parts[0].trim()
+            parsedMcc = parts[1].trim()
+            parsedMnc = parts[2].trim()
+            parsedLac = parts[3].trim()
+            parsedCid = parts[4].trim()
+        }
+
+        return sql
+            .replace(":radio", "'$parsedRadio'")
+            .replace(":mcc", parsedMcc.ifEmpty { "0" })
+            .replace(":mnc", parsedMnc.ifEmpty { "0" })
+            .replace(":lac", parsedLac.ifEmpty { "0" })
+            .replace(":cid", parsedCid.ifEmpty { "0" })
+            .replace(":minLat", currentMinLat?.toString() ?: "null")
+            .replace(":maxLat", currentMaxLat?.toString() ?: "null")
+            .replace(":minLon", currentMinLon?.toString() ?: "null")
+            .replace(":maxLon", currentMaxLon?.toString() ?: "null")
+    }
+
     private fun runSql(sql: String) {
         appendSqlResult("--- Running SQL ---", clear = true)
-        appendSqlResult("Query: $sql")
+
+        val finalSql = buildParameterizedSql(sql)
+        appendSqlResult("Query: $finalSql")
 
         lifecycleScope.launch {
             withContext(Dispatchers.IO) {
                 try {
                     val db = AppDatabase.getDatabase(this@MainActivity).openHelper.readableDatabase
-                    val cursor = db.query(sql)
+                    val cursor = db.query(finalSql)
                     val columns = cursor.columnNames
                     appendSqlResult(columns.joinToString(" | "))
 
                     var count = 0
+
+                    val latIndex = columns.indexOf("lat")
+                    val lonIndex = columns.indexOf("lon")
+                    var minLatCalc: Double? = null
+                    var maxLatCalc: Double? = null
+                    var minLonCalc: Double? = null
+                    var maxLonCalc: Double? = null
+
                     while (cursor.moveToNext() && count < 100) { // limit output so we don't crash the textview
                         val row = StringBuilder()
                         for (i in columns.indices) {
@@ -192,10 +270,50 @@ class MainActivity : AppCompatActivity() {
                         }
                         appendSqlResult(row.toString())
                         count++
+
+                        if (currentMinLat == null && latIndex >= 0 && lonIndex >= 0) {
+                            try {
+                                val lat = cursor.getDouble(latIndex)
+                                val lon = cursor.getDouble(lonIndex)
+                                if (minLatCalc == null || lat < minLatCalc!!) minLatCalc = lat
+                                if (maxLatCalc == null || lat > maxLatCalc!!) maxLatCalc = lat
+                                if (minLonCalc == null || lon < minLonCalc!!) minLonCalc = lon
+                                if (maxLonCalc == null || lon > maxLonCalc!!) maxLonCalc = lon
+                            } catch (e: Exception) {
+                                // ignore parse errors for coordinates
+                            }
+                        }
                     }
-                    if (cursor.moveToNext()) {
+
+                    // Note: If we had more than 100 rows and wanted full bounds, we should continue reading them
+                    // but without appending to string builder.
+                    if (currentMinLat == null && latIndex >= 0 && lonIndex >= 0) {
+                        while (cursor.moveToNext()) {
+                            try {
+                                val lat = cursor.getDouble(latIndex)
+                                val lon = cursor.getDouble(lonIndex)
+                                if (minLatCalc == null || lat < minLatCalc!!) minLatCalc = lat
+                                if (maxLatCalc == null || lat > maxLatCalc!!) maxLatCalc = lat
+                                if (minLonCalc == null || lon < minLonCalc!!) minLonCalc = lon
+                                if (maxLonCalc == null || lon > maxLonCalc!!) maxLonCalc = lon
+                            } catch (e: Exception) {
+                                // ignore
+                            }
+                        }
+                    }
+
+                    if (count >= 100 || cursor.moveToNext()) {
                         appendSqlResult("... (results truncated to 100 rows)")
                     }
+
+                    if (currentMinLat == null && minLatCalc != null) {
+                        currentMinLat = minLatCalc
+                        currentMaxLat = maxLatCalc
+                        currentMinLon = minLonCalc
+                        currentMaxLon = maxLonCalc
+                        appendSqlResult("Calculated new map boundaries from results.")
+                    }
+
                     cursor.close()
                     appendSqlResult("--- End SQL ---")
                 } catch (e: Exception) {
@@ -223,47 +341,54 @@ class MainActivity : AppCompatActivity() {
     private fun performScan() {
         val apiKey = sharedPrefs.getString(KEY_API_KEY, "") ?: return
 
+        val cellInfoStr = binding.etCellInfo.text.toString().trim()
+        if (cellInfoStr.isEmpty()) {
+            Toast.makeText(this, "Please enter cellular info in the text field.", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        val parts = cellInfoStr.split(",")
+        if (parts.size != 5) {
+            Toast.makeText(this, "Invalid cellular info format. Use: radio,mcc,mnc,lac,cid", Toast.LENGTH_LONG).show()
+            return
+        }
+
+        val parsedRadio = parts[0].trim()
+        val parsedMcc = parts[1].trim().toIntOrNull()
+        val parsedMnc = parts[2].trim().toIntOrNull()
+        val parsedLac = parts[3].trim().toIntOrNull()
+        val parsedCid = parts[4].trim().toLongOrNull()
+
+        if (parsedMcc == null || parsedMnc == null || parsedLac == null || parsedCid == null) {
+            Toast.makeText(this, "Invalid cellular info numbers.", Toast.LENGTH_LONG).show()
+            return
+        }
+
         binding.tvStatus.text = ""
-        appendLog("Status: Scanning current cell...")
-        Toast.makeText(this, "Scanning current cell...", Toast.LENGTH_SHORT).show()
+        appendLog("Status: Scanning edited cell data...")
+        Toast.makeText(this, "Scanning edited cell data...", Toast.LENGTH_SHORT).show()
         binding.btnScan.isEnabled = false
 
         lifecycleScope.launch {
 
 
 
-            val cellInfo = TelephonyHelper.getCurrentCellInfo(this@MainActivity)
-            if (cellInfo == null) {
-                val msg = "Could not determine current cell (Check SIM / Signal)"
-                appendLog(msg)
-                Toast.makeText(this@MainActivity, msg, Toast.LENGTH_LONG).show()
-                binding.btnScan.isEnabled = true
-                return@launch
-            }
-
-
-            val msgConnected = "Connected to ${cellInfo.radio} MCC:${cellInfo.mcc} MNC:${cellInfo.mnc} LAC:${cellInfo.lac} CID:${cellInfo.cid}. Resolving location..."
+            val msgConnected = "Resolving location for $parsedRadio MCC:$parsedMcc MNC:$parsedMnc LAC:$parsedLac CID:$parsedCid..."
             appendLog(msgConnected)
             Toast.makeText(this@MainActivity, "Resolving location...", Toast.LENGTH_SHORT).show()
 
             val mainTower = dataSyncManager.ensureCellTowerExistsAndGet(
                 apiKey,
-                cellInfo.radio,
-                cellInfo.mcc,
-                cellInfo.mnc,
-                cellInfo.lac,
-                cellInfo.cid
+                parsedRadio,
+                parsedMcc,
+                parsedMnc,
+                parsedLac,
+                parsedCid
             ) { logMsg ->
                 appendLog(logMsg)
             }
 
-            if (mainTower == null) {
-                val msgFailed = "Failed to resolve location for MCC:${cellInfo.mcc} MNC:${cellInfo.mnc} LAC:${cellInfo.lac} CID:${cellInfo.cid}. Please consider donating data to OpenCelliD!"
-                appendLog(msgFailed)
-                Toast.makeText(this@MainActivity, msgFailed, Toast.LENGTH_LONG).show()
-                binding.btnScan.isEnabled = true
-                return@launch
-            }
+            var effectiveMainTower = mainTower
 
             val radiusPosition = binding.spinnerRadius.selectedItemPosition
             // Save it just in case they didn't hit Save Key
@@ -272,24 +397,75 @@ class MainActivity : AppCompatActivity() {
             val radiusValues = arrayOf(0.5, 1.0, 1.5, 2.5, 4.0, 5.0, 7.0, 10.0, 15.0, 20.0)
             val radiusKm = if (radiusPosition in radiusValues.indices) radiusValues[radiusPosition] else 4.0
 
-            val msgRadius = "Finding surrounding towers (${radiusKm}km radius)..."
-            appendLog(msgRadius)
-
-            val boundingBox = GpxGenerator.calculateBoundingBox(mainTower.lat, mainTower.lon, radiusKm)
-            val minLat = boundingBox[0]
-            val maxLat = boundingBox[1]
-            val minLon = boundingBox[2]
-            val maxLon = boundingBox[3]
-
             val dao = AppDatabase.getDatabase(this@MainActivity).cellTowerDao()
-            appendLog("DB Query: getTowersInBoundingBox($minLat, $maxLat, $minLon, $maxLon)")
-            val surroundingTowers = dao.getTowersInBoundingBox(minLat, maxLat, minLon, maxLon)
+
+            var fallbackCenterLat: Double? = null
+            var fallbackCenterLon: Double? = null
+
+            if (effectiveMainTower == null) {
+                val msgFailed = "Failed to resolve exact location for CID:$parsedCid. Falling back to center of LAC:$parsedLac..."
+                appendLog(msgFailed)
+
+                val lacTowers = dao.getAllTowersInLac(parsedMcc, parsedMnc, parsedLac)
+                if (lacTowers.isNotEmpty()) {
+                    var sumLat = 0.0
+                    var sumLon = 0.0
+                    for (t in lacTowers) {
+                        sumLat += t.lat
+                        sumLon += t.lon
+                    }
+                    fallbackCenterLat = sumLat / lacTowers.size
+                    fallbackCenterLon = sumLon / lacTowers.size
+                    appendLog("Calculated LAC center from ${lacTowers.size} towers: ($fallbackCenterLat, $fallbackCenterLon)")
+
+                    val boundingBox = GpxGenerator.calculateBoundingBox(fallbackCenterLat, fallbackCenterLon, radiusKm)
+                    currentMinLat = boundingBox[0]
+                    currentMaxLat = boundingBox[1]
+                    currentMinLon = boundingBox[2]
+                    currentMaxLon = boundingBox[3]
+                } else {
+                    appendLog("No towers found in LAC:$parsedLac. Bounds remain null.")
+                    currentMinLat = null
+                    currentMaxLat = null
+                    currentMinLon = null
+                    currentMaxLon = null
+                }
+            } else {
+                val msgRadius = "Finding surrounding towers (${radiusKm}km radius)..."
+                appendLog(msgRadius)
+                val boundingBox = GpxGenerator.calculateBoundingBox(effectiveMainTower.lat, effectiveMainTower.lon, radiusKm)
+                currentMinLat = boundingBox[0]
+                currentMaxLat = boundingBox[1]
+                currentMinLon = boundingBox[2]
+                currentMaxLon = boundingBox[3]
+            }
+
+            val sqlEditorContent = binding.etSql.text.toString().trim()
+            val surroundingTowers = if (sqlEditorContent.isNotEmpty()) {
+                val finalSql = buildParameterizedSql(sqlEditorContent)
+                appendLog("DB Query (via SQL Editor): $finalSql")
+                dao.getTowersViaSql(SimpleSQLiteQuery(finalSql))
+            } else if (currentMinLat != null && currentMaxLat != null && currentMinLon != null && currentMaxLon != null) {
+                appendLog("DB Query: getTowersInBoundingBox($currentMinLat, $currentMaxLat, $currentMinLon, $currentMaxLon)")
+                dao.getTowersInBoundingBox(currentMinLat!!, currentMaxLat!!, currentMinLon!!, currentMaxLon!!)
+            } else {
+                appendLog("No valid bounding box and no custom SQL provided. Aborting scan.")
+                emptyList()
+            }
+
+            if (surroundingTowers.isEmpty()) {
+                val msgNoTowers = "No towers found."
+                appendLog(msgNoTowers)
+                Toast.makeText(this@MainActivity, msgNoTowers, Toast.LENGTH_SHORT).show()
+                binding.btnScan.isEnabled = true
+                return@launch
+            }
 
             val msgGpx = "Generating GPX track with ${surroundingTowers.size} surrounding towers..."
             appendLog(msgGpx)
 
             val gpxUri = withContext(Dispatchers.IO) {
-                GpxGenerator.generateGpx(this@MainActivity, mainTower, surroundingTowers)
+                GpxGenerator.generateGpx(this@MainActivity, effectiveMainTower, surroundingTowers)
             }
 
             val msgSend = "Sending to OsmAnd..."
@@ -301,8 +477,31 @@ class MainActivity : AppCompatActivity() {
                 val zoomDouble = 16.0 - (Math.log(radiusKm / 0.5) / Math.log(2.0))
                 val zoomLevel = Math.max(2, Math.min(20, Math.round(zoomDouble).toInt()))
 
+                // Determine map center
+                val mapCenterLat: Double
+                val mapCenterLon: Double
+
+                if (effectiveMainTower != null) {
+                    mapCenterLat = effectiveMainTower.lat
+                    mapCenterLon = effectiveMainTower.lon
+                } else if (fallbackCenterLat != null && fallbackCenterLon != null) {
+                    mapCenterLat = fallbackCenterLat
+                    mapCenterLon = fallbackCenterLon
+                } else {
+                    // Ultimate fallback to average of returned towers
+                    var sumLat = 0.0
+                    var sumLon = 0.0
+                    for (t in surroundingTowers) {
+                        sumLat += t.lat
+                        sumLon += t.lon
+                    }
+                    mapCenterLat = sumLat / surroundingTowers.size
+                    mapCenterLon = sumLon / surroundingTowers.size
+                    appendLog("Map center defaulting to average of results: ($mapCenterLat, $mapCenterLon)")
+                }
+
                 withContext(Dispatchers.Main) {
-                    osmandHelper.showSurroundings(gpxUri, mainTower.lat, mainTower.lon, zoomLevel) { logMsg ->
+                    osmandHelper.showSurroundings(gpxUri, mapCenterLat, mapCenterLon, zoomLevel) { logMsg ->
                         appendLog(logMsg)
                     }
                     val msgDone = "Done. Check OsmAnd."

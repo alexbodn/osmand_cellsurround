@@ -13,7 +13,7 @@ import java.util.Locale
 
 object GpxGenerator {
 
-    fun generateGpx(context: Context, mainTower: CellTower, surroundingTowers: List<CellTower>): Uri {
+    fun generateGpx(context: Context, mainTower: CellTower?, surroundingTowers: List<CellTower>): Uri {
         val fileName = "cellular_surround.gpx"
         val file = File(context.cacheDir, fileName)
 
@@ -33,19 +33,21 @@ object GpxGenerator {
         gpxStr.append("  </metadata>\n")
 
         // Main connected tower (highlighted in color)
-        gpxStr.append("  <wpt lat=\"${mainTower.lat}\" lon=\"${mainTower.lon}\">\n")
-        gpxStr.append("    <time>$timeString</time>\n")
-        gpxStr.append("    <desc>${mainTower.mcc}-${mainTower.mnc}-${mainTower.lac}-${mainTower.cid}</desc>\n")
-        gpxStr.append("    <type>main_tower</type>\n")
-        gpxStr.append("    <extensions>\n")
-        gpxStr.append("      <osmand:color>#00FF00</osmand:color>\n")
-        gpxStr.append("    </extensions>\n")
-        gpxStr.append("  </wpt>\n")
+        if (mainTower != null) {
+            gpxStr.append("  <wpt lat=\"${mainTower.lat}\" lon=\"${mainTower.lon}\">\n")
+            gpxStr.append("    <time>$timeString</time>\n")
+            gpxStr.append("    <desc>${mainTower.mcc}-${mainTower.mnc}-${mainTower.lac}-${mainTower.cid}</desc>\n")
+            gpxStr.append("    <type>main_tower</type>\n")
+            gpxStr.append("    <extensions>\n")
+            gpxStr.append("      <osmand:color>#00FF00</osmand:color>\n")
+            gpxStr.append("    </extensions>\n")
+            gpxStr.append("  </wpt>\n")
+        }
 
         // Surrounding towers
         for (tower in surroundingTowers) {
-            // Don't duplicate the main tower
-            if (tower.mcc == mainTower.mcc && tower.mnc == mainTower.mnc && tower.cid == mainTower.cid) continue
+            // Don't duplicate the main tower if it exists
+            if (mainTower != null && tower.mcc == mainTower.mcc && tower.mnc == mainTower.mnc && tower.cid == mainTower.cid) continue
 
             gpxStr.append("  <wpt lat=\"${tower.lat}\" lon=\"${tower.lon}\">\n")
             gpxStr.append("    <desc>${tower.mcc}-${tower.mnc}-${tower.lac}-${tower.cid}</desc>\n")
