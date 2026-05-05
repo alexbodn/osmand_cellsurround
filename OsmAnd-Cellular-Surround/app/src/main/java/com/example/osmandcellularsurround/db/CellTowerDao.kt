@@ -22,6 +22,9 @@ interface CellTowerDao {
     @Query("SELECT * FROM cell_towers WHERE mcc = :mcc AND mnc = :mnc AND lac = :lac LIMIT 1")
     suspend fun getAnyTowerInLac(mcc: Int, mnc: Int, lac: Int): CellTower?
 
+    @Query("SELECT * FROM cell_towers WHERE mcc = :mcc AND mnc = :mnc AND lac = :lac")
+    suspend fun getAllTowersInLac(mcc: Int, mnc: Int, lac: Int): List<CellTower>
+
     @Query("SELECT * FROM cell_towers WHERE lat BETWEEN :minLat AND :maxLat AND lon BETWEEN :minLon AND :maxLon")
     suspend fun getTowersInBoundingBox(minLat: Double, maxLat: Double, minLon: Double, maxLon: Double): List<CellTower>
 
