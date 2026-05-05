@@ -41,10 +41,10 @@ class MainActivity : AppCompatActivity() {
     private val KEY_RADIUS = "scan_radius"
 
     // To hold latest values for SQL execution
-    private var currentMinLat: Double = 0.0
-    private var currentMaxLat: Double = 0.0
-    private var currentMinLon: Double = 0.0
-    private var currentMaxLon: Double = 0.0
+    private var currentMinLat: Double? = null
+    private var currentMaxLat: Double? = null
+    private var currentMinLon: Double? = null
+    private var currentMaxLon: Double? = null
 
     private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
@@ -90,12 +90,10 @@ class MainActivity : AppCompatActivity() {
                     0 -> {
                         binding.scrollViewStatus.visibility = View.VISIBLE
                         binding.scrollViewConfig.visibility = View.GONE
-                        binding.btnCopyLog.text = "Copy Log"
                     }
                     1 -> {
                         binding.scrollViewStatus.visibility = View.GONE
                         binding.scrollViewConfig.visibility = View.VISIBLE
-                        binding.btnCopyLog.text = "Copy SQL Result"
                     }
                 }
             }
@@ -106,7 +104,7 @@ class MainActivity : AppCompatActivity() {
 
         // Setup SQL Editor default if empty
         if (binding.etSql.text.toString().isEmpty()) {
-            binding.etSql.setText("SELECT * FROM cell_towers WHERE lat BETWEEN :minLat AND :maxLat AND lon BETWEEN :minLon AND :maxLon")
+            binding.etSql.setText("SELECT * FROM cell_towers WHERE case when :minLat is not null then lat BETWEEN :minLat AND :maxLat AND lon BETWEEN :minLon AND :maxLon else lac=:lac end")
         }
 
         // Load saved preferences
@@ -124,6 +122,21 @@ class MainActivity : AppCompatActivity() {
                     .putInt(KEY_RADIUS, radiusPosition)
                     .apply()
                 Toast.makeText(this, "Preferences Saved", Toast.LENGTH_SHORT).show()
+            }
+        }
+
+        binding.btnReloadCellInfo.setOnClickListener {
+            if (hasPermissions()) {
+                val cellInfo = TelephonyHelper.getCurrentCellInfo(this)
+                if (cellInfo != null) {
+                    val infoStr = "${cellInfo.radio},${cellInfo.mcc},${cellInfo.mnc},${cellInfo.lac},${cellInfo.cid}"
+                    binding.etCellInfo.setText(infoStr)
+                    Toast.makeText(this, "Reloaded cell info", Toast.LENGTH_SHORT).show()
+                } else {
+                    Toast.makeText(this, "Could not read cell info", Toast.LENGTH_SHORT).show()
+                }
+            } else {
+                Toast.makeText(this, "Permissions required", Toast.LENGTH_SHORT).show()
             }
         }
 
@@ -216,10 +229,10 @@ class MainActivity : AppCompatActivity() {
             .replace(":mnc", parsedMnc.ifEmpty { "0" })
             .replace(":lac", parsedLac.ifEmpty { "0" })
             .replace(":cid", parsedCid.ifEmpty { "0" })
-            .replace(":minLat", currentMinLat.toString())
-            .replace(":maxLat", currentMaxLat.toString())
-            .replace(":minLon", currentMinLon.toString())
-            .replace(":maxLon", currentMaxLon.toString())
+            .replace(":minLat", currentMinLat?.toString() ?: "null")
+            .replace(":maxLat", currentMaxLat?.toString() ?: "null")
+            .replace(":minLon", currentMinLon?.toString() ?: "null")
+            .replace(":maxLon", currentMaxLon?.toString() ?: "null")
     }
 
     private fun runSql(sql: String) {
@@ -237,6 +250,14 @@ class MainActivity : AppCompatActivity() {
                     appendSqlResult(columns.joinToString(" | "))
 
                     var count = 0
+
+                    val latIndex = columns.indexOf("lat")
+                    val lonIndex = columns.indexOf("lon")
+                    var minLatCalc: Double? = null
+                    var maxLatCalc: Double? = null
+                    var minLonCalc: Double? = null
+                    var maxLonCalc: Double? = null
+
                     while (cursor.moveToNext() && count < 100) { // limit output so we don't crash the textview
                         val row = StringBuilder()
                         for (i in columns.indices) {
@@ -249,10 +270,50 @@ class MainActivity : AppCompatActivity() {
                         }
                         appendSqlResult(row.toString())
                         count++
+
+                        if (currentMinLat == null && latIndex >= 0 && lonIndex >= 0) {
+                            try {
+                                val lat = cursor.getDouble(latIndex)
+                                val lon = cursor.getDouble(lonIndex)
+                                if (minLatCalc == null || lat < minLatCalc!!) minLatCalc = lat
+                                if (maxLatCalc == null || lat > maxLatCalc!!) maxLatCalc = lat
+                                if (minLonCalc == null || lon < minLonCalc!!) minLonCalc = lon
+                                if (maxLonCalc == null || lon > maxLonCalc!!) maxLonCalc = lon
+                            } catch (e: Exception) {
+                                // ignore parse errors for coordinates
+                            }
+                        }
                     }
-                    if (cursor.moveToNext()) {
+
+                    // Note: If we had more than 100 rows and wanted full bounds, we should continue reading them
+                    // but without appending to string builder.
+                    if (currentMinLat == null && latIndex >= 0 && lonIndex >= 0) {
+                        while (cursor.moveToNext()) {
+                            try {
+                                val lat = cursor.getDouble(latIndex)
+                                val lon = cursor.getDouble(lonIndex)
+                                if (minLatCalc == null || lat < minLatCalc!!) minLatCalc = lat
+                                if (maxLatCalc == null || lat > maxLatCalc!!) maxLatCalc = lat
+                                if (minLonCalc == null || lon < minLonCalc!!) minLonCalc = lon
+                                if (maxLonCalc == null || lon > maxLonCalc!!) maxLonCalc = lon
+                            } catch (e: Exception) {
+                                // ignore
+                            }
+                        }
+                    }
+
+                    if (count >= 100 || cursor.moveToNext()) {
                         appendSqlResult("... (results truncated to 100 rows)")
                     }
+
+                    if (currentMinLat == null && minLatCalc != null) {
+                        currentMinLat = minLatCalc
+                        currentMaxLat = maxLatCalc
+                        currentMinLon = minLonCalc
+                        currentMaxLon = maxLonCalc
+                        appendSqlResult("Calculated new map boundaries from results.")
+                    }
+
                     cursor.close()
                     appendSqlResult("--- End SQL ---")
                 } catch (e: Exception) {
