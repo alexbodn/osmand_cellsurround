@@ -388,13 +388,7 @@ class MainActivity : AppCompatActivity() {
                 appendLog(logMsg)
             }
 
-            if (mainTower == null) {
-                val msgFailed = "Failed to resolve location for MCC:$parsedMcc MNC:$parsedMnc LAC:$parsedLac CID:$parsedCid. Please consider donating data to OpenCelliD!"
-                appendLog(msgFailed)
-                Toast.makeText(this@MainActivity, msgFailed, Toast.LENGTH_LONG).show()
-                binding.btnScan.isEnabled = true
-                return@launch
-            }
+            var effectiveMainTower = mainTower
 
             val radiusPosition = binding.spinnerRadius.selectedItemPosition
             // Save it just in case they didn't hit Save Key
@@ -403,19 +397,22 @@ class MainActivity : AppCompatActivity() {
             val radiusValues = arrayOf(0.5, 1.0, 1.5, 2.5, 4.0, 5.0, 7.0, 10.0, 15.0, 20.0)
             val radiusKm = if (radiusPosition in radiusValues.indices) radiusValues[radiusPosition] else 4.0
 
-            val msgRadius = "Finding surrounding towers (${radiusKm}km radius)..."
-            appendLog(msgRadius)
-
-            val boundingBox = GpxGenerator.calculateBoundingBox(mainTower.lat, mainTower.lon, radiusKm)
-            val minLat = boundingBox[0]
-            val maxLat = boundingBox[1]
-            val minLon = boundingBox[2]
-            val maxLon = boundingBox[3]
-
-            currentMinLat = minLat
-            currentMaxLat = maxLat
-            currentMinLon = minLon
-            currentMaxLon = maxLon
+            if (effectiveMainTower == null) {
+                val msgFailed = "Failed to resolve exact location for MCC:$parsedMcc MNC:$parsedMnc LAC:$parsedLac CID:$parsedCid. Proceeding with scan via SQL fallback..."
+                appendLog(msgFailed)
+                currentMinLat = null
+                currentMaxLat = null
+                currentMinLon = null
+                currentMaxLon = null
+            } else {
+                val msgRadius = "Finding surrounding towers (${radiusKm}km radius)..."
+                appendLog(msgRadius)
+                val boundingBox = GpxGenerator.calculateBoundingBox(effectiveMainTower.lat, effectiveMainTower.lon, radiusKm)
+                currentMinLat = boundingBox[0]
+                currentMaxLat = boundingBox[1]
+                currentMinLon = boundingBox[2]
+                currentMaxLon = boundingBox[3]
+            }
 
             val dao = AppDatabase.getDatabase(this@MainActivity).cellTowerDao()
 
@@ -424,16 +421,48 @@ class MainActivity : AppCompatActivity() {
                 val finalSql = buildParameterizedSql(sqlEditorContent)
                 appendLog("DB Query (via SQL Editor): $finalSql")
                 dao.getTowersViaSql(SimpleSQLiteQuery(finalSql))
+            } else if (currentMinLat != null && currentMaxLat != null && currentMinLon != null && currentMaxLon != null) {
+                appendLog("DB Query: getTowersInBoundingBox($currentMinLat, $currentMaxLat, $currentMinLon, $currentMaxLon)")
+                dao.getTowersInBoundingBox(currentMinLat!!, currentMaxLat!!, currentMinLon!!, currentMaxLon!!)
             } else {
-                appendLog("DB Query: getTowersInBoundingBox($minLat, $maxLat, $minLon, $maxLon)")
-                dao.getTowersInBoundingBox(minLat, maxLat, minLon, maxLon)
+                appendLog("No valid bounding box and no custom SQL provided. Aborting scan.")
+                emptyList()
+            }
+
+            if (surroundingTowers.isEmpty()) {
+                val msgNoTowers = "No towers found."
+                appendLog(msgNoTowers)
+                Toast.makeText(this@MainActivity, msgNoTowers, Toast.LENGTH_SHORT).show()
+                binding.btnScan.isEnabled = true
+                return@launch
+            }
+
+            if (effectiveMainTower == null) {
+                var sumLat = 0.0
+                var sumLon = 0.0
+                for (t in surroundingTowers) {
+                    sumLat += t.lat
+                    sumLon += t.lon
+                }
+                val avgLat = sumLat / surroundingTowers.size
+                val avgLon = sumLon / surroundingTowers.size
+
+                effectiveMainTower = com.example.osmandcellularsurround.db.CellTower(
+                    mcc = parsedMcc,
+                    mnc = parsedMnc,
+                    lac = parsedLac,
+                    cid = parsedCid,
+                    lon = avgLon,
+                    lat = avgLat
+                )
+                appendLog("Calculated map center from ${surroundingTowers.size} fallback results: ($avgLat, $avgLon)")
             }
 
             val msgGpx = "Generating GPX track with ${surroundingTowers.size} surrounding towers..."
             appendLog(msgGpx)
 
             val gpxUri = withContext(Dispatchers.IO) {
-                GpxGenerator.generateGpx(this@MainActivity, mainTower, surroundingTowers)
+                GpxGenerator.generateGpx(this@MainActivity, effectiveMainTower!!, surroundingTowers)
             }
 
             val msgSend = "Sending to OsmAnd..."
@@ -446,7 +475,7 @@ class MainActivity : AppCompatActivity() {
                 val zoomLevel = Math.max(2, Math.min(20, Math.round(zoomDouble).toInt()))
 
                 withContext(Dispatchers.Main) {
-                    osmandHelper.showSurroundings(gpxUri, mainTower.lat, mainTower.lon, zoomLevel) { logMsg ->
+                    osmandHelper.showSurroundings(gpxUri, effectiveMainTower!!.lat, effectiveMainTower!!.lon, zoomLevel) { logMsg ->
                         appendLog(logMsg)
                     }
                     val msgDone = "Done. Check OsmAnd."
