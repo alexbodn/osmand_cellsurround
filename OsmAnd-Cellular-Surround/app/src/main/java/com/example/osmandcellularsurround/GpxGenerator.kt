@@ -63,8 +63,8 @@ object GpxGenerator {
         gpxStr.append("    <osmand:show_arrows>true</osmand:show_arrows>\n")
         gpxStr.append("    <osmand:color>#FF0000</osmand:color>\n")
         gpxStr.append("    <osmand:points_groups>\n")
-        gpxStr.append("      <group name=\"main_tower\" icon=\"radio_tower\" background=\"circle\" color=\"#00FF00\" />\n")
-        gpxStr.append("      <group name=\"surrounding_tower\" icon=\"radio_tower\" background=\"circle\" color=\"#0000FF\" />\n")
+        gpxStr.append("      <group name=\"main_tower\" icon=\"communication_tower\" background=\"circle\" color=\"#00FF00\" />\n")
+        gpxStr.append("      <group name=\"surrounding_tower\" icon=\"communication_tower\" background=\"circle\" color=\"#0000FF\" />\n")
         gpxStr.append("    </osmand:points_groups>\n")
         gpxStr.append("  </extensions>\n")
 
