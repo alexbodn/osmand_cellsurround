@@ -42,12 +42,17 @@
         <com.google.android.material.tabs.TabItem
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Log" />
+            android:text="Background" />
 
         <com.google.android.material.tabs.TabItem
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="CONFIG" />
+
+        <com.google.android.material.tabs.TabItem
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Log" />
     </com.google.android.material.tabs.TabLayout>
 
     <FrameLayout
@@ -60,18 +65,93 @@
         app:layout_constraintBottom_toTopOf="@id/llButtons">
 
         <ScrollView
-            android:id="@+id/scrollViewStatus"
+            android:id="@+id/scrollViewBackground"
             android:layout_width="match_parent"
             android:layout_height="match_parent">
 
-            <TextView
-                android:id="@+id/tvStatus"
+            <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Status: Ready\n"
-                android:textSize="12sp"
-                android:textIsSelectable="true"
-                android:typeface="monospace" />
+                android:orientation="vertical">
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="About OsmAnd Cellular Surround"
+                    android:textSize="18sp"
+                    android:textStyle="bold"
+                    android:layout_marginBottom="8dp" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="This application serves as an external plugin for OsmAnd, allowing you to visualize your surrounding cellular network towers directly on the map. It intelligently resolves cell tower locations from local databases and OpenCelliD to generate precise GPX files."
+                    android:textSize="14sp"
+                    android:layout_marginBottom="16dp" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Data Donation"
+                    android:textSize="18sp"
+                    android:textStyle="bold"
+                    android:layout_marginBottom="8dp" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="By donating data, you help improve the OpenCelliD database, a community-driven project mapping cellular towers worldwide. When you click DONATE, the app securely sends your current, live cellular network info along with highly accurate GPS coordinates.\n\nDonated information is read directly from your device sensors and cannot be spoofed."
+                    android:textSize="14sp"
+                    android:layout_marginBottom="16dp" />
+
+                <TextView
+                    android:id="@+id/tvDocumentationLink"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Read OpenCelliD Documentation"
+                    android:textColor="@android:color/holo_blue_dark"
+                    android:autoLink="web"
+                    android:layout_marginBottom="8dp" />
+
+                <TextView
+                    android:id="@+id/tvUserProfileLink"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="View your OpenCelliD Profile &amp; History"
+                    android:textColor="@android:color/holo_blue_dark"
+                    android:autoLink="web"
+                    android:layout_marginBottom="16dp" />
+            </LinearLayout>
+        </ScrollView>
+
+        <ScrollView
+            android:id="@+id/scrollViewStatus"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:visibility="gone">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical">
+
+                <Button
+                    android:id="@+id/btnCopyLog"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Copy Log"
+                    android:layout_gravity="end"
+                    android:layout_marginBottom="8dp" />
+
+                <TextView
+                    android:id="@+id/tvStatus"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Status: Ready\n"
+                    android:textSize="12sp"
+                    android:textIsSelectable="true"
+                    android:typeface="monospace" />
+            </LinearLayout>
         </ScrollView>
 
         <ScrollView
@@ -192,6 +272,7 @@
                     android:minLines="5"
                     android:scrollbars="vertical"
                     android:hint="SQL query (e.g., SELECT * FROM cell_towers LIMIT 10)"
+                    android:gravity="top|start"
                     android:textSize="12sp" />
 
                 <LinearLayout
@@ -251,11 +332,11 @@
         app:layout_constraintBottom_toBottomOf="parent">
 
         <Button
-            android:id="@+id/btnCopyLog"
+            android:id="@+id/btnDonate"
             android:layout_width="0dp"
             android:layout_weight="1"
             android:layout_height="wrap_content"
-            android:text="COPY" />
+            android:text="DONATE" />
 
         <Button
             android:id="@+id/btnScan"
