@@ -10,6 +10,9 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import android.view.View
 import android.text.method.LinkMovementMethod
+import android.location.Location
+import android.location.LocationListener
+import android.location.LocationManager
 import androidx.core.text.HtmlCompat
 import com.google.android.material.tabs.TabLayout
 import androidx.core.content.ContextCompat
@@ -46,6 +49,8 @@ class MainActivity : AppCompatActivity() {
     private var currentMaxLat: Double? = null
     private var currentMinLon: Double? = null
     private var currentMaxLon: Double? = null
+
+    private var locationManager: LocationManager? = null
 
     private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
@@ -84,17 +89,34 @@ class MainActivity : AppCompatActivity() {
             adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
             binding.spinnerRadius.adapter = adapter
         }
+        // Setup Location tracking
+        locationManager = getSystemService(Context.LOCATION_SERVICE) as LocationManager
+
+        // Setup Links in Background Tab
+        binding.tvDocumentationLink.text = HtmlCompat.fromHtml("<a href=\"https://wiki.opencellid.org/wiki/API\">Read OpenCelliD Documentation</a>", HtmlCompat.FROM_HTML_MODE_COMPACT)
+        binding.tvDocumentationLink.movementMethod = LinkMovementMethod.getInstance()
+
+        binding.tvUserProfileLink.text = HtmlCompat.fromHtml("<a href=\"https://opencellid.org\">View your OpenCelliD Profile &amp; History</a>", HtmlCompat.FROM_HTML_MODE_COMPACT)
+        binding.tvUserProfileLink.movementMethod = LinkMovementMethod.getInstance()
+
         // Setup TabLayout
         binding.tabLayout.addOnTabSelectedListener(object : TabLayout.OnTabSelectedListener {
             override fun onTabSelected(tab: TabLayout.Tab?) {
                 when (tab?.position) {
                     0 -> {
-                        binding.scrollViewStatus.visibility = View.VISIBLE
+                        binding.scrollViewBackground.visibility = View.VISIBLE
                         binding.scrollViewConfig.visibility = View.GONE
+                        binding.scrollViewStatus.visibility = View.GONE
                     }
                     1 -> {
-                        binding.scrollViewStatus.visibility = View.GONE
+                        binding.scrollViewBackground.visibility = View.GONE
                         binding.scrollViewConfig.visibility = View.VISIBLE
+                        binding.scrollViewStatus.visibility = View.GONE
+                    }
+                    2 -> {
+                        binding.scrollViewBackground.visibility = View.GONE
+                        binding.scrollViewConfig.visibility = View.GONE
+                        binding.scrollViewStatus.visibility = View.VISIBLE
                     }
                 }
             }
@@ -102,6 +124,8 @@ class MainActivity : AppCompatActivity() {
             override fun onTabReselected(tab: TabLayout.Tab?) {}
         })
 
+        // Select initial tab
+        binding.tabLayout.getTabAt(0)?.select()
 
         // Load saved preferences
         val savedKey = sharedPrefs.getString(KEY_API_KEY, "")
@@ -174,6 +198,73 @@ class MainActivity : AppCompatActivity() {
             Toast.makeText(this, toastMsg, Toast.LENGTH_SHORT).show()
         }
 
+        binding.btnCopySqlResult.setOnClickListener {
+            val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+            val clip = ClipData.newPlainText("OsmAnd Cellular SQL Result", binding.tvSqlResult.text)
+            clipboard.setPrimaryClip(clip)
+            Toast.makeText(this, "SQL Result copied to clipboard", Toast.LENGTH_SHORT).show()
+        }
+
+        binding.btnDonate.setOnClickListener {
+            val apiKey = sharedPrefs.getString(KEY_API_KEY, "") ?: ""
+            if (apiKey.isEmpty()) {
+                Toast.makeText(this, "Please save an API key first.", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+
+            if (!hasPermissions()) {
+                Toast.makeText(this, "Location and Phone permissions required to donate data.", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+
+            val cellInfo = TelephonyHelper.getCurrentCellInfo(this)
+            if (cellInfo == null) {
+                Toast.makeText(this, "Cannot read live cell info.", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+
+            try {
+                // Fetch location on-demand
+                val lastKnown = locationManager?.getLastKnownLocation(LocationManager.GPS_PROVIDER)
+                if (lastKnown != null && lastKnown.hasAccuracy() && lastKnown.accuracy < 20f &&
+                    (System.currentTimeMillis() - lastKnown.time < 30000)) {
+                    donateLiveMeasurement(apiKey, cellInfo, lastKnown)
+                } else {
+                    Toast.makeText(this, "Waiting for reliable GPS (<20m)...", Toast.LENGTH_SHORT).show()
+                    binding.btnDonate.isEnabled = false
+
+                    val listener = object : LocationListener {
+                        override fun onLocationChanged(location: Location) {
+                            if (location.hasAccuracy() && location.accuracy < 20f) {
+                                locationManager?.removeUpdates(this)
+                                donateLiveMeasurement(apiKey, cellInfo, location)
+                                binding.btnDonate.isEnabled = true
+                            }
+                        }
+                        override fun onStatusChanged(provider: String?, status: Int, extras: Bundle?) {}
+                        override fun onProviderEnabled(provider: String) {}
+                        override fun onProviderDisabled(provider: String) {
+                            Toast.makeText(this@MainActivity, "GPS provider disabled", Toast.LENGTH_SHORT).show()
+                            locationManager?.removeUpdates(this)
+                            binding.btnDonate.isEnabled = true
+                        }
+                    }
+                    locationManager?.requestLocationUpdates(LocationManager.GPS_PROVIDER, 1000L, 0f, listener)
+
+                    // Stop listening after 10 seconds if no accurate fix
+                    binding.btnDonate.postDelayed({
+                        locationManager?.removeUpdates(listener)
+                        if (!binding.btnDonate.isEnabled) {
+                            Toast.makeText(this@MainActivity, "Failed to get reliable GPS.", Toast.LENGTH_SHORT).show()
+                            binding.btnDonate.isEnabled = true
+                        }
+                    }, 10000)
+                }
+            } catch (e: SecurityException) {
+                Toast.makeText(this, "Location permissions denied.", Toast.LENGTH_SHORT).show()
+            }
+        }
+
         binding.btnRunSql.setOnClickListener {
             val sql = binding.etSql.text.toString().trim()
             if (sql.isNotEmpty()) {
@@ -215,6 +306,31 @@ class MainActivity : AppCompatActivity() {
                     val infoStr = "${cellInfo.radio},${cellInfo.mcc},${cellInfo.mnc},${cellInfo.lac},${cellInfo.cid}"
                     binding.etCellInfo.setText(infoStr)
                 }
+            }
+        }
+    }
+
+    private fun donateLiveMeasurement(apiKey: String, cellInfo: TelephonyHelper.CellData, location: Location) {
+        appendLog("Status: Donating live measurement to OpenCelliD...")
+
+        lifecycleScope.launch {
+            val success = OpenCellidApi.donateData(
+                apiKey,
+                cellInfo.radio,
+                cellInfo.mcc,
+                cellInfo.mnc,
+                cellInfo.lac,
+                cellInfo.cid,
+                location.latitude,
+                location.longitude
+            ) { msg ->
+                appendLog(msg)
+            }
+
+            if (success) {
+                Toast.makeText(this@MainActivity, "Data donated successfully", Toast.LENGTH_SHORT).show()
+            } else {
+                Toast.makeText(this@MainActivity, "Failed to donate data", Toast.LENGTH_SHORT).show()
             }
         }
     }
@@ -424,7 +540,6 @@ class MainActivity : AppCompatActivity() {
 
             val sqlEditorContent = binding.etSql.text.toString().trim()
             val surroundingTowers = if (sqlEditorContent.isNotEmpty()) {
-                // Determine if we need to order the query
                 var finalSql = buildParameterizedSql(sqlEditorContent)
                 if (!finalSql.contains("ORDER BY", ignoreCase = true)) {
                     finalSql += " ORDER BY lat, lon"
