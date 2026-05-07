@@ -9,8 +9,8 @@ When the user initiates a scan (by clicking **SHOW ON MAP**), the app attempts t
 ### A. Main Tower Resolution
 The app first tries to find the exact coordinates for the main tower provided in the `radio,mcc,mnc,lac,cid` input string. It does this via `DataSyncManager.ensureCellTowerExistsAndGet`:
 
-1.  **Local Database Check:** It queries the local Room database (`getCellTower`) for the exact matching `MCC`, `MNC`, and `CID` (ignoring `LAC` as it's not a unique identifier). If found, this tower is returned as the main tower.
-2.  **MCC Database Download Fallback:** If the tower isn't found, the app checks if *any* towers exist for that specific `MCC` in the local DB. If the count is 0, it means the user hasn't downloaded the DB for that region yet. It triggers a download and import of the full OpenCelliD CSV for that `MCC`. Afterward, it re-queries the local database for the specific tower.
+1.  **MCC Database Download Check:** Before checking for the specific tower, the app checks if *any* towers exist for the given `MCC` in the local DB. If the count is 0, it means the user hasn't downloaded the DB for that region yet. It triggers a download and import of the full OpenCelliD CSV for that `MCC`. This ensures that even if the specific main tower is already cached locally, we have the surrounding towers available to display on the map.
+2.  **Local Database Check:** It queries the local Room database (`getCellTower`) for the exact matching `MCC`, `MNC`, and `CID` (ignoring `LAC` as it's not a unique identifier). If found, this tower is returned as the main tower.
 3.  **Single Cell API Fallback:** If the tower is *still* missing (e.g., it's a very new tower not yet in the OpenCelliD CSV dumps), the app makes a single API request (`OpenCellidApi.getCellLocation`) using the `radio`, `mcc`, `mnc`, `lac`, and `cid` to a fallback location API (e.g., Unwired Labs). If the API successfully resolves the coordinates, the tower is inserted into the local database and used as the main tower.
 
 ### B. Fallback Central Point Calculation
