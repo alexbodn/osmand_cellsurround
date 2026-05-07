@@ -32,28 +32,37 @@ object GpxGenerator {
         gpxStr.append("    <name>cellular_surround</name>\n")
         gpxStr.append("  </metadata>\n")
 
-        // Main connected tower (highlighted in color)
+        // Combine all towers
+        val allTowers = mutableListOf<CellTower>()
         if (mainTower != null) {
-            gpxStr.append("  <wpt lat=\"${mainTower.lat}\" lon=\"${mainTower.lon}\">\n")
-            gpxStr.append("    <time>$timeString</time>\n")
-            gpxStr.append("    <desc>${mainTower.mcc}-${mainTower.mnc}-${mainTower.lac}-${mainTower.cid}</desc>\n")
-            gpxStr.append("    <type>main_tower</type>\n")
-            gpxStr.append("    <extensions>\n")
-            gpxStr.append("      <osmand:color>#00FF00</osmand:color>\n")
-            gpxStr.append("    </extensions>\n")
-            gpxStr.append("  </wpt>\n")
+            allTowers.add(mainTower)
+        }
+        for (tower in surroundingTowers) {
+            if (mainTower != null && tower.mcc == mainTower.mcc && tower.mnc == mainTower.mnc && tower.cid == mainTower.cid) continue
+            allTowers.add(tower)
         }
 
-        // Surrounding towers
-        for (tower in surroundingTowers) {
-            // Don't duplicate the main tower if it exists
-            if (mainTower != null && tower.mcc == mainTower.mcc && tower.mnc == mainTower.mnc && tower.cid == mainTower.cid) continue
+        // Group by exact lat/lon
+        val groupedTowers = allTowers.groupBy { Pair(it.lat, it.lon) }
 
-            gpxStr.append("  <wpt lat=\"${tower.lat}\" lon=\"${tower.lon}\">\n")
-            gpxStr.append("    <desc>${tower.mcc}-${tower.mnc}-${tower.lac}-${tower.cid}</desc>\n")
-            gpxStr.append("    <type>surrounding_tower</type>\n")
+        // Order results by lat, lon
+        val sortedGroups = groupedTowers.entries.sortedWith(compareBy({ it.key.first }, { it.key.second }))
+
+        for ((location, towersAtLocation) in sortedGroups) {
+            val hasMainTower = towersAtLocation.any { mainTower != null && it.cid == mainTower.cid && it.mcc == mainTower.mcc && it.mnc == mainTower.mnc }
+            val descStr = towersAtLocation.joinToString("\n") { "${it.mcc}-${it.mnc}-${it.lac}-${it.cid}" }
+
+            val type = if (hasMainTower) "main_tower" else "surrounding_tower"
+            val color = if (hasMainTower) "#00FF00" else "#0000FF"
+
+            gpxStr.append("  <wpt lat=\"${location.first}\" lon=\"${location.second}\">\n")
+            if (hasMainTower) {
+                gpxStr.append("    <time>$timeString</time>\n")
+            }
+            gpxStr.append("    <desc>$descStr</desc>\n")
+            gpxStr.append("    <type>$type</type>\n")
             gpxStr.append("    <extensions>\n")
-            gpxStr.append("      <osmand:color>#0000FF</osmand:color>\n")
+            gpxStr.append("      <osmand:color>$color</osmand:color>\n")
             gpxStr.append("    </extensions>\n")
             gpxStr.append("  </wpt>\n")
         }

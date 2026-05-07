@@ -10,11 +10,6 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import android.view.View
 import android.text.method.LinkMovementMethod
-import android.location.Location
-import android.location.LocationListener
-import android.location.LocationManager
-import android.text.Editable
-import android.text.TextWatcher
 import androidx.core.text.HtmlCompat
 import com.google.android.material.tabs.TabLayout
 import androidx.core.content.ContextCompat
@@ -44,14 +39,13 @@ class MainActivity : AppCompatActivity() {
     private val PREFS_NAME = "OsmAndCellularPrefs"
     private val KEY_API_KEY = "api_key"
     private val KEY_RADIUS = "scan_radius"
+    private val KEY_SQL = "saved_sql"
 
     // To hold latest values for SQL execution
     private var currentMinLat: Double? = null
     private var currentMaxLat: Double? = null
     private var currentMinLon: Double? = null
     private var currentMaxLon: Double? = null
-
-    private var locationManager: LocationManager? = null
 
     private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
@@ -90,37 +84,17 @@ class MainActivity : AppCompatActivity() {
             adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
             binding.spinnerRadius.adapter = adapter
         }
-        // Setup Location tracking
-        locationManager = getSystemService(Context.LOCATION_SERVICE) as LocationManager
-
-        // We no longer evaluate btnDonate disablement dynamically based on text watcher.
-        // It's checked on-demand when clicked.
-
-        // Setup Links in Background Tab
-        binding.tvDocumentationLink.text = HtmlCompat.fromHtml("<a href=\"https://wiki.opencellid.org/wiki/API\">Read OpenCelliD Documentation</a>", HtmlCompat.FROM_HTML_MODE_COMPACT)
-        binding.tvDocumentationLink.movementMethod = LinkMovementMethod.getInstance()
-
-        binding.tvUserProfileLink.text = HtmlCompat.fromHtml("<a href=\"https://opencellid.org\">View your OpenCelliD Profile &amp; History</a>", HtmlCompat.FROM_HTML_MODE_COMPACT)
-        binding.tvUserProfileLink.movementMethod = LinkMovementMethod.getInstance()
-
         // Setup TabLayout
         binding.tabLayout.addOnTabSelectedListener(object : TabLayout.OnTabSelectedListener {
             override fun onTabSelected(tab: TabLayout.Tab?) {
                 when (tab?.position) {
                     0 -> {
-                        binding.scrollViewBackground.visibility = View.VISIBLE
+                        binding.scrollViewStatus.visibility = View.VISIBLE
                         binding.scrollViewConfig.visibility = View.GONE
-                        binding.scrollViewStatus.visibility = View.GONE
                     }
                     1 -> {
-                        binding.scrollViewBackground.visibility = View.GONE
-                        binding.scrollViewConfig.visibility = View.VISIBLE
                         binding.scrollViewStatus.visibility = View.GONE
-                    }
-                    2 -> {
-                        binding.scrollViewBackground.visibility = View.GONE
-                        binding.scrollViewConfig.visibility = View.GONE
-                        binding.scrollViewStatus.visibility = View.VISIBLE
+                        binding.scrollViewConfig.visibility = View.VISIBLE
                     }
                 }
             }
@@ -128,18 +102,18 @@ class MainActivity : AppCompatActivity() {
             override fun onTabReselected(tab: TabLayout.Tab?) {}
         })
 
-        // Select initial tab
-        binding.tabLayout.getTabAt(0)?.select()
-
-
-        // Setup SQL Editor default if empty
-        if (binding.etSql.text.toString().isEmpty()) {
-            binding.etSql.setText("SELECT * FROM cell_towers WHERE case when :minLat is not null then lat BETWEEN :minLat AND :maxLat AND lon BETWEEN :minLon AND :maxLon else lac=:lac end")
-        }
 
         // Load saved preferences
         val savedKey = sharedPrefs.getString(KEY_API_KEY, "")
         binding.etApiKey.setText(savedKey)
+        val savedSql = sharedPrefs.getString(KEY_SQL, "")
+        if (!savedSql.isNullOrEmpty()) {
+            binding.etSql.setText(savedSql)
+        } else if (binding.etSql.text.toString().isEmpty()) {
+            // Set default SQL if empty and no saved SQL
+            binding.etSql.setText("SELECT * FROM cell_towers WHERE case when :minLat is not null then lat BETWEEN :minLat AND :maxLat AND lon BETWEEN :minLon AND :maxLon else lac=:lac end")
+        }
+
         val savedRadius = sharedPrefs.getInt(KEY_RADIUS, 0)
         binding.spinnerRadius.setSelection(savedRadius)
 
@@ -170,71 +144,6 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        binding.btnDonate.setOnClickListener {
-            val apiKey = sharedPrefs.getString(KEY_API_KEY, "") ?: ""
-            if (apiKey.isEmpty()) {
-                Toast.makeText(this, "Please save an API key first.", Toast.LENGTH_SHORT).show()
-                return@setOnClickListener
-            }
-
-            if (!hasPermissions()) {
-                Toast.makeText(this, "Location and Phone permissions required to donate data.", Toast.LENGTH_SHORT).show()
-                return@setOnClickListener
-            }
-
-            val cellInfo = TelephonyHelper.getCurrentCellInfo(this)
-            if (cellInfo == null) {
-                Toast.makeText(this, "Cannot read live cell info.", Toast.LENGTH_SHORT).show()
-                return@setOnClickListener
-            }
-
-            try {
-                // Fetch location on-demand
-                // Use location manager to get the last known location or current location
-                // Using last known GPS for immediate response if accurate enough, otherwise wait
-
-                val lastKnown = locationManager?.getLastKnownLocation(LocationManager.GPS_PROVIDER)
-                if (lastKnown != null && lastKnown.hasAccuracy() && lastKnown.accuracy < 20f &&
-                    (System.currentTimeMillis() - lastKnown.time < 30000)) {
-                    // Location is recent (30s) and accurate
-                    donateLiveMeasurement(apiKey, cellInfo, lastKnown)
-                } else {
-                    // Request a single fresh update
-                    Toast.makeText(this, "Waiting for reliable GPS (<20m)...", Toast.LENGTH_SHORT).show()
-                    binding.btnDonate.isEnabled = false
-
-                    val listener = object : LocationListener {
-                        override fun onLocationChanged(location: Location) {
-                            if (location.hasAccuracy() && location.accuracy < 20f) {
-                                locationManager?.removeUpdates(this)
-                                donateLiveMeasurement(apiKey, cellInfo, location)
-                                binding.btnDonate.isEnabled = true
-                            }
-                        }
-                        override fun onStatusChanged(provider: String?, status: Int, extras: Bundle?) {}
-                        override fun onProviderEnabled(provider: String) {}
-                        override fun onProviderDisabled(provider: String) {
-                            Toast.makeText(this@MainActivity, "GPS provider disabled", Toast.LENGTH_SHORT).show()
-                            locationManager?.removeUpdates(this)
-                            binding.btnDonate.isEnabled = true
-                        }
-                    }
-                    locationManager?.requestLocationUpdates(LocationManager.GPS_PROVIDER, 1000L, 0f, listener)
-
-                    // Stop listening after 10 seconds if no accurate fix
-                    binding.btnDonate.postDelayed({
-                        locationManager?.removeUpdates(listener)
-                        if (!binding.btnDonate.isEnabled) {
-                            Toast.makeText(this@MainActivity, "Failed to get reliable GPS.", Toast.LENGTH_SHORT).show()
-                            binding.btnDonate.isEnabled = true
-                        }
-                    }, 10000)
-                }
-            } catch (e: SecurityException) {
-                Toast.makeText(this, "Location permissions denied.", Toast.LENGTH_SHORT).show()
-            }
-        }
-
         binding.btnScan.setOnClickListener {
             if (binding.etApiKey.text.toString().trim().isEmpty()) {
                 Toast.makeText(this, "Please enter and save an API Key first", Toast.LENGTH_SHORT).show()
@@ -256,16 +165,13 @@ class MainActivity : AppCompatActivity() {
 
         binding.btnCopyLog.setOnClickListener {
             val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-            val clip = ClipData.newPlainText("OsmAnd Cellular Log", binding.tvStatus.text)
+            val isSqlTab = binding.tabLayout.selectedTabPosition == 1
+            val textToCopy = if (isSqlTab) binding.tvSqlResult.text else binding.tvStatus.text
+            val label = if (isSqlTab) "OsmAnd Cellular SQL Result" else "OsmAnd Cellular Log"
+            val clip = ClipData.newPlainText(label, textToCopy)
             clipboard.setPrimaryClip(clip)
-            Toast.makeText(this, "Log copied to clipboard", Toast.LENGTH_SHORT).show()
-        }
-
-        binding.btnCopySqlResult.setOnClickListener {
-            val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-            val clip = ClipData.newPlainText("OsmAnd Cellular SQL Result", binding.tvSqlResult.text)
-            clipboard.setPrimaryClip(clip)
-            Toast.makeText(this, "SQL Result copied to clipboard", Toast.LENGTH_SHORT).show()
+            val toastMsg = if (isSqlTab) "SQL Result copied to clipboard" else "Log copied to clipboard"
+            Toast.makeText(this, toastMsg, Toast.LENGTH_SHORT).show()
         }
 
         binding.btnRunSql.setOnClickListener {
@@ -273,6 +179,29 @@ class MainActivity : AppCompatActivity() {
             if (sql.isNotEmpty()) {
                 runSql(sql)
             }
+        }
+
+        binding.btnSaveSql.setOnClickListener {
+            val sql = binding.etSql.text.toString().trim()
+            sharedPrefs.edit().putString(KEY_SQL, sql).apply()
+            Toast.makeText(this, "SQL Saved", Toast.LENGTH_SHORT).show()
+        }
+
+        val openFileLauncher = registerForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+            uri?.let {
+                try {
+                    contentResolver.openInputStream(it)?.use { inputStream ->
+                        val text = inputStream.bufferedReader().use { reader -> reader.readText() }
+                        binding.etSql.setText(text)
+                    }
+                } catch (e: Exception) {
+                    Toast.makeText(this, "Failed to read file: ${e.message}", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+
+        binding.btnOpenFile.setOnClickListener {
+            openFileLauncher.launch("text/*")
         }
     }
 
@@ -286,31 +215,6 @@ class MainActivity : AppCompatActivity() {
                     val infoStr = "${cellInfo.radio},${cellInfo.mcc},${cellInfo.mnc},${cellInfo.lac},${cellInfo.cid}"
                     binding.etCellInfo.setText(infoStr)
                 }
-            }
-        }
-    }
-
-    private fun donateLiveMeasurement(apiKey: String, cellInfo: TelephonyHelper.CellData, location: Location) {
-        appendLog("Status: Donating live measurement to OpenCelliD...")
-
-        lifecycleScope.launch {
-            val success = OpenCellidApi.donateData(
-                apiKey,
-                cellInfo.radio,
-                cellInfo.mcc,
-                cellInfo.mnc,
-                cellInfo.lac,
-                cellInfo.cid,
-                location.latitude,
-                location.longitude
-            ) { msg ->
-                appendLog(msg)
-            }
-
-            if (success) {
-                Toast.makeText(this@MainActivity, "Data donated successfully", Toast.LENGTH_SHORT).show()
-            } else {
-                Toast.makeText(this@MainActivity, "Failed to donate data", Toast.LENGTH_SHORT).show()
             }
         }
     }
@@ -374,13 +278,6 @@ class MainActivity : AppCompatActivity() {
 
                     var count = 0
 
-                    val latIndex = columns.indexOf("lat")
-                    val lonIndex = columns.indexOf("lon")
-                    var minLatCalc: Double? = null
-                    var maxLatCalc: Double? = null
-                    var minLonCalc: Double? = null
-                    var maxLonCalc: Double? = null
-
                     while (cursor.moveToNext() && count < 100) { // limit output so we don't crash the textview
                         val row = StringBuilder()
                         for (i in columns.indices) {
@@ -393,48 +290,10 @@ class MainActivity : AppCompatActivity() {
                         }
                         appendSqlResult(row.toString())
                         count++
-
-                        if (currentMinLat == null && latIndex >= 0 && lonIndex >= 0) {
-                            try {
-                                val lat = cursor.getDouble(latIndex)
-                                val lon = cursor.getDouble(lonIndex)
-                                if (minLatCalc == null || lat < minLatCalc!!) minLatCalc = lat
-                                if (maxLatCalc == null || lat > maxLatCalc!!) maxLatCalc = lat
-                                if (minLonCalc == null || lon < minLonCalc!!) minLonCalc = lon
-                                if (maxLonCalc == null || lon > maxLonCalc!!) maxLonCalc = lon
-                            } catch (e: Exception) {
-                                // ignore parse errors for coordinates
-                            }
-                        }
-                    }
-
-                    // Note: If we had more than 100 rows and wanted full bounds, we should continue reading them
-                    // but without appending to string builder.
-                    if (currentMinLat == null && latIndex >= 0 && lonIndex >= 0) {
-                        while (cursor.moveToNext()) {
-                            try {
-                                val lat = cursor.getDouble(latIndex)
-                                val lon = cursor.getDouble(lonIndex)
-                                if (minLatCalc == null || lat < minLatCalc!!) minLatCalc = lat
-                                if (maxLatCalc == null || lat > maxLatCalc!!) maxLatCalc = lat
-                                if (minLonCalc == null || lon < minLonCalc!!) minLonCalc = lon
-                                if (maxLonCalc == null || lon > maxLonCalc!!) maxLonCalc = lon
-                            } catch (e: Exception) {
-                                // ignore
-                            }
-                        }
                     }
 
                     if (count >= 100 || cursor.moveToNext()) {
                         appendSqlResult("... (results truncated to 100 rows)")
-                    }
-
-                    if (currentMinLat == null && minLatCalc != null) {
-                        currentMinLat = minLatCalc
-                        currentMaxLat = maxLatCalc
-                        currentMinLon = minLonCalc
-                        currentMaxLon = maxLonCalc
-                        appendSqlResult("Calculated new map boundaries from results.")
                     }
 
                     cursor.close()
@@ -565,7 +424,11 @@ class MainActivity : AppCompatActivity() {
 
             val sqlEditorContent = binding.etSql.text.toString().trim()
             val surroundingTowers = if (sqlEditorContent.isNotEmpty()) {
-                val finalSql = buildParameterizedSql(sqlEditorContent)
+                // Determine if we need to order the query
+                var finalSql = buildParameterizedSql(sqlEditorContent)
+                if (!finalSql.contains("ORDER BY", ignoreCase = true)) {
+                    finalSql += " ORDER BY lat, lon"
+                }
                 appendLog("DB Query (via SQL Editor): $finalSql")
                 dao.getTowersViaSql(SimpleSQLiteQuery(finalSql))
             } else if (currentMinLat != null && currentMaxLat != null && currentMinLon != null && currentMaxLon != null) {
