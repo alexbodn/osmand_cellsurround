@@ -539,7 +539,7 @@ class MainActivity : AppCompatActivity() {
             }
 
             val sqlEditorContent = binding.etSql.text.toString().trim()
-            val surroundingTowers = if (sqlEditorContent.isNotEmpty()) {
+            val surroundingTowers: List<com.example.osmandcellularsurround.db.CellTowerResult> = if (sqlEditorContent.isNotEmpty()) {
                 var finalSql = buildParameterizedSql(sqlEditorContent)
                 if (!finalSql.contains("ORDER BY", ignoreCase = true)) {
                     finalSql += " ORDER BY lat, lon"
