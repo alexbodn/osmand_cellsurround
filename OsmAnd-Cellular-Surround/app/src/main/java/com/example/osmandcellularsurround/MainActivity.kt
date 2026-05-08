@@ -42,7 +42,8 @@ class MainActivity : AppCompatActivity() {
     private val PREFS_NAME = "OsmAndCellularPrefs"
     private val KEY_API_KEY = "api_key"
     private val KEY_RADIUS = "scan_radius"
-    private val KEY_SQL = "saved_sql"
+    private val KEY_SQL = "saved_sql" // now legacy or used for console if needed
+    private val KEY_TOWERS_SQL = "towers_sql"
 
     // To hold latest values for SQL execution
     private var currentMinLat: Double? = null
@@ -130,12 +131,16 @@ class MainActivity : AppCompatActivity() {
         // Load saved preferences
         val savedKey = sharedPrefs.getString(KEY_API_KEY, "")
         binding.etApiKey.setText(savedKey)
-        val savedSql = sharedPrefs.getString(KEY_SQL, "")
-        if (!savedSql.isNullOrEmpty()) {
-            binding.etSql.setText(savedSql)
-        } else if (binding.etSql.text.toString().isEmpty()) {
+
+        // Load Towers SQL, migrating from old KEY_SQL if KEY_TOWERS_SQL is missing
+        val oldSavedSql = sharedPrefs.getString(KEY_SQL, "")
+        val savedTowersSql = sharedPrefs.getString(KEY_TOWERS_SQL, oldSavedSql)
+
+        if (!savedTowersSql.isNullOrEmpty()) {
+            binding.etTowersSql.setText(savedTowersSql)
+        } else if (binding.etTowersSql.text.toString().isEmpty()) {
             // Set default SQL if empty and no saved SQL
-            binding.etSql.setText("SELECT * FROM cell_towers WHERE case when :minLat is not null then lat BETWEEN :minLat AND :maxLat AND lon BETWEEN :minLon AND :maxLon else lac=:lac end")
+            binding.etTowersSql.setText("SELECT * FROM cell_towers WHERE case when :minLat is not null then lat BETWEEN :minLat AND :maxLat AND lon BETWEEN :minLon AND :maxLon else lac=:lac end")
         }
 
         val savedRadius = sharedPrefs.getInt(KEY_RADIUS, 0)
@@ -272,10 +277,10 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        binding.btnSaveSql.setOnClickListener {
-            val sql = binding.etSql.text.toString().trim()
-            sharedPrefs.edit().putString(KEY_SQL, sql).apply()
-            Toast.makeText(this, "SQL Saved", Toast.LENGTH_SHORT).show()
+        binding.btnSaveTowersSql.setOnClickListener {
+            val sql = binding.etTowersSql.text.toString().trim()
+            sharedPrefs.edit().putString(KEY_TOWERS_SQL, sql).apply()
+            Toast.makeText(this, "Towers SQL Saved", Toast.LENGTH_SHORT).show()
         }
 
         val openFileLauncher = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
@@ -300,9 +305,34 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
+        val runFileLauncher = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+            uri?.let {
+                lifecycleScope.launch {
+                    try {
+                        withContext(Dispatchers.IO) {
+                            contentResolver.openInputStream(it)?.use { inputStream ->
+                                val text = inputStream.bufferedReader().use { reader -> reader.readText() }
+                                withContext(Dispatchers.Main) {
+                                    runSql(text)
+                                }
+                            }
+                        }
+                    } catch (e: Exception) {
+                        withContext(Dispatchers.Main) {
+                            Toast.makeText(this@MainActivity, "Failed to run file: ${e.message}", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                }
+            }
+        }
+
         binding.btnOpenFile.setOnClickListener {
             // Support generic text files or unknown types often assigned to .sql
             openFileLauncher.launch(arrayOf("text/*", "application/sql", "application/x-sql", "text/sql", "application/octet-stream"))
+        }
+
+        binding.btnRunFile.setOnClickListener {
+            runFileLauncher.launch(arrayOf("text/*", "application/sql", "application/x-sql", "text/sql", "application/octet-stream"))
         }
     }
 
@@ -548,13 +578,13 @@ class MainActivity : AppCompatActivity() {
                 currentMaxLon = boundingBox[3]
             }
 
-            val sqlEditorContent = binding.etSql.text.toString().trim()
+            val sqlEditorContent = binding.etTowersSql.text.toString().trim()
             val surroundingTowers = if (sqlEditorContent.isNotEmpty()) {
                 var finalSql = buildParameterizedSql(sqlEditorContent)
                 if (!finalSql.contains("ORDER BY", ignoreCase = true)) {
                     finalSql += " ORDER BY lat, lon"
                 }
-                appendLog("DB Query (via SQL Editor): $finalSql")
+                appendLog("DB Query (via Towers SQL): $finalSql")
                 dao.getTowersViaSql(SimpleSQLiteQuery(finalSql))
             } else if (currentMinLat != null && currentMaxLat != null && currentMinLon != null && currentMaxLon != null) {
                 appendLog("DB Query: getTowersInBoundingBox($currentMinLat, $currentMaxLat, $currentMinLon, $currentMaxLon)")

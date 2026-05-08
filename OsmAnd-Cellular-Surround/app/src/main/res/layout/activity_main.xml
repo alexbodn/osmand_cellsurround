@@ -265,12 +265,53 @@
                     android:layout_gravity="center_vertical" />
             </LinearLayout>
 
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Towers SQL"
+                android:textSize="12sp"
+                android:layout_marginTop="8dp" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal">
+
+                <EditText
+                    android:id="@+id/etTowersSql"
+                    android:layout_width="0dp"
+                    android:layout_weight="1"
+                    android:layout_height="wrap_content"
+                    android:minLines="3"
+                    android:maxLines="5"
+                    android:scrollbars="vertical"
+                    android:gravity="top|start"
+                    android:inputType="textMultiLine"
+                    android:hint="SQL to select towers for map"
+                    android:textSize="12sp" />
+
+                <Button
+                    android:id="@+id/btnSaveTowersSql"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Save"
+                    android:layout_gravity="center_vertical"
+                    android:layout_marginStart="8dp" />
+            </LinearLayout>
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="SQL Console"
+                android:textStyle="bold"
+                android:layout_marginTop="16dp"
+                android:layout_marginBottom="8dp" />
+
             <LinearLayout
                 android:id="@+id/llSqlInput"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:layout_marginTop="8dp">
+                android:orientation="horizontal">
 
                 <EditText
                     android:id="@+id/etSql"
@@ -293,28 +334,43 @@
 
                     <Button
                         android:id="@+id/btnOpenFile"
-                        android:layout_width="wrap_content"
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:text="Open File" />
 
                     <Button
-                        android:id="@+id/btnSaveSql"
-                        android:layout_width="wrap_content"
+                        android:id="@+id/btnRunFile"
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:text="Save SQL" />
-
-                    <Button
-                        android:id="@+id/btnCopySqlResult"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Copy Result" />
+                        android:text="Run File" />
 
                     <Button
                         android:id="@+id/btnRunSql"
-                        android:layout_width="wrap_content"
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:text="Run SQL" />
                 </LinearLayout>
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginTop="8dp">
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_weight="1"
+                    android:layout_height="wrap_content"
+                    android:text="Result:"
+                    android:layout_gravity="center_vertical"
+                    android:textStyle="bold" />
+
+                <Button
+                    android:id="@+id/btnCopySqlResult"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Copy" />
             </LinearLayout>
 
             <ScrollView
@@ -322,7 +378,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="0dp"
                 android:layout_weight="1"
-                android:layout_marginTop="8dp">
+                android:layout_marginTop="4dp">
 
                 <TextView
                     android:id="@+id/tvSqlResult"
