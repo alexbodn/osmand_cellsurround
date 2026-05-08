@@ -13,7 +13,17 @@ class DataSyncManager(private val context: Context) {
 
     suspend fun ensureCellTowerExistsAndGet(apiKey: String, radio: String, mcc: Int, mnc: Int, lac: Int, cid: Long, logger: (String) -> Unit): CellTower? {
         return withContext(Dispatchers.IO) {
-            // 1. Check local DB
+            // 1. Check if we need to download the MCC DB first
+            // We need this even if the exact tower is in DB, because we need surrounding towers for the map.
+            val mccCount = dao.countTowersByMcc(mcc)
+            logger("DB Query: countTowersByMcc($mcc) -> $mccCount")
+            if (mccCount == 0) {
+                logger("No data for MCC $mcc. Downloading OpenCelliD CSV...")
+                val success = OpenCellidDownloader.downloadAndImportMcc(context, apiKey, mcc, logger)
+                logger("Download result: $success")
+            }
+
+            // 2. Check local DB for specific tower
             logger("DB Query: getCellTower(mcc=$mcc, mnc=$mnc, cid=$cid)")
             var tower = dao.getCellTower(mcc, mnc, cid)
             if (tower != null) {
@@ -21,23 +31,6 @@ class DataSyncManager(private val context: Context) {
                 return@withContext tower
             }
             logger("DB Result: Tower not found locally.")
-
-            // 2. If completely missing the MCC, attempt to download CSV
-            val mccCount = dao.countTowersByMcc(mcc)
-            logger("DB Query: countTowersByMcc($mcc) -> $mccCount")
-            if (mccCount == 0) {
-                logger("No data for MCC $mcc. Downloading OpenCelliD CSV...")
-                val success = OpenCellidDownloader.downloadAndImportMcc(context, apiKey, mcc, logger)
-                logger("Download result: $success")
-
-                // Try to fetch again
-                tower = dao.getCellTower(mcc, mnc, cid)
-                if (tower != null) {
-                    logger("DB Result: Found locally after download at lat=${tower.lat} lon=${tower.lon}")
-                    return@withContext tower
-                }
-                logger("DB Result: Still not found locally after full MCC download.")
-            }
 
             // 3. Fallback: single API request for the current tower if we STILL don't have it
             // (either the MCC download failed or it's a very new tower not in the DB dump)
