@@ -140,7 +140,7 @@ class MainActivity : AppCompatActivity() {
             binding.etTowersSql.setText(savedTowersSql)
         } else if (binding.etTowersSql.text.toString().isEmpty()) {
             // Set default SQL if empty and no saved SQL
-            binding.etTowersSql.setText("SELECT lat, lon, mcc || '-' || mnc || '-' || lac || '-' || cid AS `desc` FROM cell_towers WHERE lat BETWEEN :minLat AND :maxLat AND lon BETWEEN :minLon AND :maxLon")
+            binding.etTowersSql.setText("SELECT * FROM cell_towers WHERE case when :minLat is not null then lat BETWEEN :minLat AND :maxLat AND lon BETWEEN :minLon AND :maxLon else lac=:lac end")
         }
 
         val savedRadius = sharedPrefs.getInt(KEY_RADIUS, 0)
