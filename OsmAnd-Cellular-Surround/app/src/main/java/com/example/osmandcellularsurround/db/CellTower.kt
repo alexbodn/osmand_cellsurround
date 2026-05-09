@@ -21,3 +21,9 @@ data class CellTower(
     val lat: Double,
     val lon: Double
 )
+
+data class CellTowerResult(
+    val lat: Double,
+    val lon: Double,
+    val desc: String?
+)

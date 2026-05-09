@@ -140,7 +140,7 @@ class MainActivity : AppCompatActivity() {
             binding.etTowersSql.setText(savedTowersSql)
         } else if (binding.etTowersSql.text.toString().isEmpty()) {
             // Set default SQL if empty and no saved SQL
-            binding.etTowersSql.setText("SELECT * FROM cell_towers WHERE case when :minLat is not null then lat BETWEEN :minLat AND :maxLat AND lon BETWEEN :minLon AND :maxLon else lac=:lac end")
+            binding.etTowersSql.setText("SELECT lat, lon, mcc || '-' || mnc || '-' || lac || '-' || cid AS `desc` FROM cell_towers WHERE lat BETWEEN :minLat AND :maxLat AND lon BETWEEN :minLon AND :maxLon")
         }
 
         val savedRadius = sharedPrefs.getInt(KEY_RADIUS, 0)
@@ -533,12 +533,16 @@ class MainActivity : AppCompatActivity() {
             sharedPrefs.edit().putInt(KEY_RADIUS, radiusPosition).apply()
 
             val radiusValues = arrayOf(0.5, 1.0, 1.5, 2.5, 4.0, 5.0, 7.0, 10.0, 15.0, 20.0)
-            val radiusKm = if (radiusPosition in radiusValues.indices) radiusValues[radiusPosition] else 4.0
 
             val dao = AppDatabase.getDatabase(this@MainActivity).cellTowerDao()
 
             var fallbackCenterLat: Double? = null
             var fallbackCenterLon: Double? = null
+            val sqlEditorContent = binding.etTowersSql.text.toString().trim()
+
+            var surroundingTowers: List<com.example.osmandcellularsurround.db.CellTowerResult> = emptyList()
+            var currentTryRadiusPosition = radiusPosition
+            var actualRadiusKm = 4.0
 
             if (effectiveMainTower == null) {
                 val msgFailed = "Failed to resolve exact location for CID:$parsedCid. Falling back to center of LAC:$parsedLac..."
@@ -555,44 +559,60 @@ class MainActivity : AppCompatActivity() {
                     fallbackCenterLat = sumLat / lacTowers.size
                     fallbackCenterLon = sumLon / lacTowers.size
                     appendLog("Calculated LAC center from ${lacTowers.size} towers: ($fallbackCenterLat, $fallbackCenterLon)")
+                } else {
+                    appendLog("No towers found in LAC:$parsedLac. Bounds remain null.")
+                }
+            }
 
-                    val boundingBox = GpxGenerator.calculateBoundingBox(fallbackCenterLat, fallbackCenterLon, radiusKm)
+            while (surroundingTowers.isEmpty() && currentTryRadiusPosition < radiusValues.size) {
+                actualRadiusKm = radiusValues[currentTryRadiusPosition]
+
+                if (effectiveMainTower == null) {
+                    if (fallbackCenterLat != null && fallbackCenterLon != null) {
+                        appendLog("Finding surrounding towers (${actualRadiusKm}km radius around fallback center)...")
+                        val boundingBox = GpxGenerator.calculateBoundingBox(fallbackCenterLat, fallbackCenterLon, actualRadiusKm)
+                        currentMinLat = boundingBox[0]
+                        currentMaxLat = boundingBox[1]
+                        currentMinLon = boundingBox[2]
+                        currentMaxLon = boundingBox[3]
+                    } else {
+                        currentMinLat = null
+                        currentMaxLat = null
+                        currentMinLon = null
+                        currentMaxLon = null
+                    }
+                } else {
+                    val msgRadius = "Finding surrounding towers (${actualRadiusKm}km radius)..."
+                    appendLog(msgRadius)
+                    val boundingBox = GpxGenerator.calculateBoundingBox(effectiveMainTower.lat, effectiveMainTower.lon, actualRadiusKm)
                     currentMinLat = boundingBox[0]
                     currentMaxLat = boundingBox[1]
                     currentMinLon = boundingBox[2]
                     currentMaxLon = boundingBox[3]
-                } else {
-                    appendLog("No towers found in LAC:$parsedLac. Bounds remain null.")
-                    currentMinLat = null
-                    currentMaxLat = null
-                    currentMinLon = null
-                    currentMaxLon = null
                 }
-            } else {
-                val msgRadius = "Finding surrounding towers (${radiusKm}km radius)..."
-                appendLog(msgRadius)
-                val boundingBox = GpxGenerator.calculateBoundingBox(effectiveMainTower.lat, effectiveMainTower.lon, radiusKm)
-                currentMinLat = boundingBox[0]
-                currentMaxLat = boundingBox[1]
-                currentMinLon = boundingBox[2]
-                currentMaxLon = boundingBox[3]
+
+                surroundingTowers = if (sqlEditorContent.isNotEmpty()) {
+                    var finalSql = buildParameterizedSql(sqlEditorContent)
+                    if (!finalSql.contains("ORDER BY", ignoreCase = true)) {
+                        finalSql += " ORDER BY lat, lon"
+                    }
+                    appendLog("DB Query (via Towers SQL): $finalSql")
+                    dao.getTowersViaSql(SimpleSQLiteQuery(finalSql))
+                } else if (currentMinLat != null && currentMaxLat != null && currentMinLon != null && currentMaxLon != null) {
+                    appendLog("DB Query: getTowersInBoundingBox($currentMinLat, $currentMaxLat, $currentMinLon, $currentMaxLon)")
+                    dao.getTowersInBoundingBox(currentMinLat!!, currentMaxLat!!, currentMinLon!!, currentMaxLon!!)
+                } else {
+                    appendLog("No valid bounding box and no custom SQL provided. Aborting scan.")
+                    emptyList()
+                }
+
+                if (surroundingTowers.isEmpty()) {
+                    appendLog("No towers found at ${actualRadiusKm}km radius. Expanding radius...")
+                    currentTryRadiusPosition++
+                }
             }
 
-            val sqlEditorContent = binding.etTowersSql.text.toString().trim()
-            val surroundingTowers = if (sqlEditorContent.isNotEmpty()) {
-                var finalSql = buildParameterizedSql(sqlEditorContent)
-                if (!finalSql.contains("ORDER BY", ignoreCase = true)) {
-                    finalSql += " ORDER BY lat, lon"
-                }
-                appendLog("DB Query (via Towers SQL): $finalSql")
-                dao.getTowersViaSql(SimpleSQLiteQuery(finalSql))
-            } else if (currentMinLat != null && currentMaxLat != null && currentMinLon != null && currentMaxLon != null) {
-                appendLog("DB Query: getTowersInBoundingBox($currentMinLat, $currentMaxLat, $currentMinLon, $currentMaxLon)")
-                dao.getTowersInBoundingBox(currentMinLat!!, currentMaxLat!!, currentMinLon!!, currentMaxLon!!)
-            } else {
-                appendLog("No valid bounding box and no custom SQL provided. Aborting scan.")
-                emptyList()
-            }
+            val radiusKm = actualRadiusKm // Use final actual radius for zoom calculations downstream
 
             if (surroundingTowers.isEmpty()) {
                 val msgNoTowers = "No towers found."

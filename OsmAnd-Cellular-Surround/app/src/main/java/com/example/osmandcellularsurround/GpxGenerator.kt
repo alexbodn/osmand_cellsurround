@@ -5,6 +5,7 @@ import android.content.Intent
 import android.net.Uri
 import androidx.core.content.FileProvider
 import com.example.osmandcellularsurround.db.CellTower
+import com.example.osmandcellularsurround.db.CellTowerResult
 import java.io.File
 import java.io.FileOutputStream
 import java.text.SimpleDateFormat
@@ -13,7 +14,7 @@ import java.util.Locale
 
 object GpxGenerator {
 
-    fun generateGpx(context: Context, mainTower: CellTower?, surroundingTowers: List<CellTower>): Uri {
+    fun generateGpx(context: Context, mainTower: CellTower?, surroundingTowers: List<CellTowerResult>): Uri {
         val fileName = "cellular_surround.gpx"
         val file = File(context.cacheDir, fileName)
 
@@ -33,12 +34,13 @@ object GpxGenerator {
         gpxStr.append("  </metadata>\n")
 
         // Combine all towers
-        val allTowers = mutableListOf<CellTower>()
+        val allTowers = mutableListOf<CellTowerResult>()
         if (mainTower != null) {
-            allTowers.add(mainTower)
+            val mainDesc = "${mainTower.mcc}-${mainTower.mnc}-${mainTower.lac}-${mainTower.cid}"
+            allTowers.add(CellTowerResult(mainTower.lat, mainTower.lon, mainDesc))
         }
         for (tower in surroundingTowers) {
-            if (mainTower != null && tower.mcc == mainTower.mcc && tower.mnc == mainTower.mnc && tower.cid == mainTower.cid) continue
+            if (mainTower != null && tower.lat == mainTower.lat && tower.lon == mainTower.lon && tower.desc == "${mainTower.mcc}-${mainTower.mnc}-${mainTower.lac}-${mainTower.cid}") continue
             allTowers.add(tower)
         }
 
@@ -49,8 +51,8 @@ object GpxGenerator {
         val sortedGroups = groupedTowers.entries.sortedWith(compareBy({ it.key.first }, { it.key.second }))
 
         for ((location, towersAtLocation) in sortedGroups) {
-            val hasMainTower = towersAtLocation.any { mainTower != null && it.cid == mainTower.cid && it.mcc == mainTower.mcc && it.mnc == mainTower.mnc }
-            val descStr = towersAtLocation.joinToString("\n") { "${it.mcc}-${it.mnc}-${it.lac}-${it.cid}" }
+            val hasMainTower = mainTower != null && location.first == mainTower.lat && location.second == mainTower.lon && towersAtLocation.any { it.desc == "${mainTower.mcc}-${mainTower.mnc}-${mainTower.lac}-${mainTower.cid}" }
+            val descStr = towersAtLocation.mapNotNull { it.desc }.joinToString("\n")
 
             val type = if (hasMainTower) "main_tower" else "surrounding_tower"
             val color = if (hasMainTower) "#00FF00" else "#0000FF"
