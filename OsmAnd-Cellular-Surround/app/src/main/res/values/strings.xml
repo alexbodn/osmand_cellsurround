@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">OsmAnd Cellular Surround</string>
+    <string name="app_name">Cellular Surround</string>
     <string name="opencellid_attribution"><![CDATA[© <a href="https://opencellid.org">OpenCelliD Project</a> is licensed under a Creative Commons Attribution-ShareAlike 4.0 International License.]]></string>
-    <string name="osmand_attribution"><![CDATA[Powered by <a href="https://osmand.net/">OsmAnd</a>. Please ensure <a href="https://play.google.com/store/apps/details?id=net.osmand.plus">OsmAnd+</a> or <a href="https://play.google.com/store/apps/details?id=net.osmand">OsmAnd</a> is installed and the OsmAnd development plugin is enabled.]]></string>
+    <string name="osmand_attribution"><![CDATA[Powered by <a href="https://osmand.net/">OsmAnd</a>. Please ensure <a href="https://play.google.com/store/apps/details?id=net.osmand.plus">OsmAnd+</a> or <a href="https://play.google.com/store/apps/details?id=net.osmand">OsmAnd</a> is installed and the Cellular Surround plugin is enabled.]]></string>
     <string name="api_key_hint">API Key</string>
     <string name="api_key_label"><![CDATA[API Key. <a href="https://my.opencellid.org/dashboard">Register free</a> to get yours.]]></string>
 </resources>

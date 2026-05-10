@@ -148,7 +148,7 @@ class MainActivity : AppCompatActivity() {
         val savedKey = sharedPrefs.getString(KEY_API_KEY, "")
         binding.etApiKey.setText(savedKey)
 
-        val defaultTowersSql = "SELECT lat, lon, desc FROM cell_towers"
+        val defaultTowersSql = "SELECT lat, lon, mcc || '-' || mnc || '-' || lac || '-' || cid AS desc FROM cell_towers"
 
         // Load Towers SQL, migrating from old KEY_SQL if KEY_TOWERS_SQL is missing
         val oldSavedSql = sharedPrefs.getString(KEY_SQL, "")
@@ -192,6 +192,16 @@ class MainActivity : AppCompatActivity() {
         }
 
         binding.btnScan.setOnClickListener {
+            if (binding.btnScan.text.toString().equals("ENABLE PLUGIN", ignoreCase = true)) {
+                val launchIntent = packageManager.getLaunchIntentForPackage("net.osmand.plus")
+                    ?: packageManager.getLaunchIntentForPackage("net.osmand")
+                if (launchIntent != null) {
+                    launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                    startActivity(launchIntent)
+                }
+                return@setOnClickListener
+            }
+
             if (binding.etApiKey.text.toString().trim().isEmpty()) {
                 Toast.makeText(this, "Please enter and save an API Key first", Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
@@ -360,6 +370,18 @@ class MainActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
+
+        lifecycleScope.launch {
+            val connected = osmandHelper.connect()
+            withContext(Dispatchers.Main) {
+                if (connected) {
+                    binding.btnScan.text = "SHOW ON MAP"
+                } else {
+                    binding.btnScan.text = "ENABLE PLUGIN"
+                }
+            }
+        }
+
         if (hasPermissions()) {
             val cellInfo = TelephonyHelper.getCurrentCellInfo(this)
             if (cellInfo != null) {
@@ -708,11 +730,11 @@ class MainActivity : AppCompatActivity() {
                 }
             } else {
                 withContext(Dispatchers.Main) {
-                    val msgNoConn = "Failed to connect to OsmAnd. Please install OsmAnd and enable the OsmAnd development plugin."
+                    val msgNoConn = "Failed to connect to OsmAnd. Please install OsmAnd and enable the Cellular Surround plugin."
                     appendLog(msgNoConn)
                     Toast.makeText(this@MainActivity, msgNoConn, Toast.LENGTH_LONG).show()
 
-                    binding.btnOsmAndPlugins.visibility = View.VISIBLE
+                    binding.btnScan.text = "ENABLE PLUGIN"
                 }
             }
 
