@@ -373,6 +373,12 @@
                         android:text="Run SQL" />
                 </LinearLayout>
             </LinearLayout>
+            <CheckBox
+                android:id="@+id/cbShowQuery"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Show Query in Results"
+                android:layout_marginTop="4dp" />
 
             <LinearLayout
                 android:layout_width="match_parent"

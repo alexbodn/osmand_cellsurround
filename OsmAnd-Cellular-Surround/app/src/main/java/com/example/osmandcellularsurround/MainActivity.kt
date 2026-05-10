@@ -341,17 +341,44 @@ class MainActivity : AppCompatActivity() {
             uri?.let {
                 lifecycleScope.launch {
                     try {
+                        appendSqlResult("--- Running SQL File ---", clear = true)
                         withContext(Dispatchers.IO) {
                             contentResolver.openInputStream(it)?.use { inputStream ->
-                                val text = inputStream.bufferedReader().use { reader -> reader.readText() }
-                                withContext(Dispatchers.Main) {
-                                    runSql(text)
+                                inputStream.bufferedReader().useLines { lines ->
+                                    val db = AppDatabase.getDatabase(this@MainActivity).openHelper.writableDatabase
+                                    var count = 0
+                                    var currentStatement = java.lang.StringBuilder()
+                                    db.beginTransaction()
+                                    try {
+                                        for (line in lines) {
+                                            val trimmed = line.trim()
+                                            if (trimmed.isEmpty() || trimmed.startsWith("--")) continue
+                                            currentStatement.append(line).append(" ")
+                                            if (trimmed.endsWith(";")) {
+                                                db.execSQL(currentStatement.toString())
+                                                currentStatement.clear()
+                                                count++
+                                                if (count % 100 == 0) {
+                                                    withContext(Dispatchers.Main) {
+                                                        binding.tvSqlResult.text = "Executing... $count statements done."
+                                                    }
+                                                }
+                                            }
+                                        }
+                                        db.setTransactionSuccessful()
+                                        withContext(Dispatchers.Main) {
+                                            appendSqlResult("Successfully executed $count statements from file.", clear = false)
+                                        }
+                                    } finally {
+                                        db.endTransaction()
+                                    }
                                 }
                             }
                         }
                     } catch (e: Exception) {
                         withContext(Dispatchers.Main) {
                             Toast.makeText(this@MainActivity, "Failed to run file: ${e.message}", Toast.LENGTH_SHORT).show()
+                            appendSqlResult("SQL File Error: ${e.message}")
                         }
                     }
                 }
@@ -462,11 +489,13 @@ class MainActivity : AppCompatActivity() {
             .replace(":maxLon", currentMaxLon?.toString() ?: "null")
     }
 
-    private fun runSql(sql: String) {
+    private fun runSql(sql: String, showQuery: Boolean = binding.cbShowQuery.isChecked) {
         appendSqlResult("--- Running SQL ---", clear = true)
 
         val finalSql = buildParameterizedSql(sql)
-        appendSqlResult("Query: $finalSql")
+        if (showQuery) {
+            appendSqlResult("Query: $finalSql")
+        }
 
         lifecycleScope.launch {
             withContext(Dispatchers.IO) {
