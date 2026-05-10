@@ -7,6 +7,7 @@ import android.content.pm.PackageManager
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
+import android.content.Intent
 import androidx.appcompat.app.AppCompatActivity
 import android.view.View
 import android.text.method.LinkMovementMethod
@@ -100,6 +101,21 @@ class MainActivity : AppCompatActivity() {
         binding.tvUserProfileLink.text = HtmlCompat.fromHtml("<a href=\"https://opencellid.org\">View your OpenCelliD Profile &amp; History</a>", HtmlCompat.FROM_HTML_MODE_COMPACT)
         binding.tvUserProfileLink.movementMethod = LinkMovementMethod.getInstance()
 
+        binding.tvCredit.text = HtmlCompat.fromHtml(getString(R.string.opencellid_attribution), HtmlCompat.FROM_HTML_MODE_COMPACT)
+        binding.tvCredit.movementMethod = LinkMovementMethod.getInstance()
+
+        binding.tvOsmAndCredit.text = HtmlCompat.fromHtml(getString(R.string.osmand_attribution), HtmlCompat.FROM_HTML_MODE_COMPACT)
+        binding.tvOsmAndCredit.movementMethod = LinkMovementMethod.getInstance()
+
+        binding.btnOsmAndPlugins.setOnClickListener {
+            val launchIntent = packageManager.getLaunchIntentForPackage("net.osmand.plus")
+                ?: packageManager.getLaunchIntentForPackage("net.osmand")
+            if (launchIntent != null) {
+                launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                startActivity(launchIntent)
+            }
+        }
+
         // Setup TabLayout
         binding.tabLayout.addOnTabSelectedListener(object : TabLayout.OnTabSelectedListener {
             override fun onTabSelected(tab: TabLayout.Tab?) {
@@ -132,6 +148,8 @@ class MainActivity : AppCompatActivity() {
         val savedKey = sharedPrefs.getString(KEY_API_KEY, "")
         binding.etApiKey.setText(savedKey)
 
+        val defaultTowersSql = "SELECT lat, lon, desc FROM cell_towers"
+
         // Load Towers SQL, migrating from old KEY_SQL if KEY_TOWERS_SQL is missing
         val oldSavedSql = sharedPrefs.getString(KEY_SQL, "")
         val savedTowersSql = sharedPrefs.getString(KEY_TOWERS_SQL, oldSavedSql)
@@ -140,7 +158,7 @@ class MainActivity : AppCompatActivity() {
             binding.etTowersSql.setText(savedTowersSql)
         } else if (binding.etTowersSql.text.toString().isEmpty()) {
             // Set default SQL if empty and no saved SQL
-            binding.etTowersSql.setText("SELECT * FROM cell_towers WHERE case when :minLat is not null then lat BETWEEN :minLat AND :maxLat AND lon BETWEEN :minLon AND :maxLon else lac=:lac end")
+            binding.etTowersSql.setText(defaultTowersSql)
         }
 
         val savedRadius = sharedPrefs.getInt(KEY_RADIUS, 0)
@@ -275,6 +293,10 @@ class MainActivity : AppCompatActivity() {
             if (sql.isNotEmpty()) {
                 runSql(sql)
             }
+        }
+
+        binding.btnDefaultTowersSql.setOnClickListener {
+            binding.etTowersSql.setText(defaultTowersSql)
         }
 
         binding.btnSaveTowersSql.setOnClickListener {
@@ -685,9 +707,13 @@ class MainActivity : AppCompatActivity() {
                     Toast.makeText(this@MainActivity, msgDone, Toast.LENGTH_SHORT).show()
                 }
             } else {
-                val msgNoConn = "Failed to connect to OsmAnd. Is it installed?"
-                appendLog(msgNoConn)
-                Toast.makeText(this@MainActivity, msgNoConn, Toast.LENGTH_LONG).show()
+                withContext(Dispatchers.Main) {
+                    val msgNoConn = "Failed to connect to OsmAnd. Please install OsmAnd and enable the OsmAnd development plugin."
+                    appendLog(msgNoConn)
+                    Toast.makeText(this@MainActivity, msgNoConn, Toast.LENGTH_LONG).show()
+
+                    binding.btnOsmAndPlugins.visibility = View.VISIBLE
+                }
             }
 
             binding.btnScan.isEnabled = true
