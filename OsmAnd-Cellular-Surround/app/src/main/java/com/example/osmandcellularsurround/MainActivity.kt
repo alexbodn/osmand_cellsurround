@@ -605,11 +605,26 @@ class MainActivity : AppCompatActivity() {
                     appendLog("No valid bounding box and no custom SQL provided. Aborting scan.")
                     emptyList()
                 }
-
+                surroundingTowers = if (sqlEditorContent.isNotEmpty()) {
+                    var finalSql = buildParameterizedSql(sqlEditorContent)
+                    if (!finalSql.contains("ORDER BY", ignoreCase = true)) {
+                        finalSql += " ORDER BY lat, lon"
+                    }
+                    appendLog("DB Query (via Towers SQL): $finalSql")
+                    dao.getTowersViaSql(SimpleSQLiteQuery(finalSql))
+                } else if (currentMinLat != null && currentMaxLat != null && currentMinLon != null && currentMaxLon != null) {
+                    appendLog("DB Query: getTowersInBoundingBox($currentMinLat, $currentMaxLat, $currentMinLon, $currentMaxLon)")
+                    dao.getTowersInBoundingBox(currentMinLat!!, currentMaxLat!!, currentMinLon!!, currentMaxLon!!)
+                } else {
+                    appendLog("No valid bounding box and no custom SQL provided. Aborting scan.")
+                    emptyList()
+                }
+                
                 if (surroundingTowers.isEmpty()) {
                     appendLog("No towers found at ${actualRadiusKm}km radius. Expanding radius...")
                     currentTryRadiusPosition++
                 }
+            
             }
 
             val radiusKm = actualRadiusKm // Use final actual radius for zoom calculations downstream
