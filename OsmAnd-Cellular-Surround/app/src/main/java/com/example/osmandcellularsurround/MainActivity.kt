@@ -419,9 +419,22 @@ class MainActivity : AppCompatActivity() {
         }
 
         val touchListener = android.view.View.OnTouchListener { view, event ->
-            if (view.canScrollVertically(1) || view.canScrollVertically(-1)) {
-                view.parent.requestDisallowInterceptTouchEvent(true)
-                if ((event.action and android.view.MotionEvent.ACTION_MASK) == android.view.MotionEvent.ACTION_UP) {
+            when (event.action and android.view.MotionEvent.ACTION_MASK) {
+                android.view.MotionEvent.ACTION_DOWN -> {
+                    view.parent.requestDisallowInterceptTouchEvent(true)
+                }
+                android.view.MotionEvent.ACTION_MOVE -> {
+                    // if at boundaries and trying to scroll further, allow parent intercept
+                    val y = event.y
+                    if (!view.canScrollVertically(-1) && event.historySize > 0 && y > event.getHistoricalY(0)) {
+                        view.parent.requestDisallowInterceptTouchEvent(false)
+                    } else if (!view.canScrollVertically(1) && event.historySize > 0 && y < event.getHistoricalY(0)) {
+                        view.parent.requestDisallowInterceptTouchEvent(false)
+                    } else {
+                        view.parent.requestDisallowInterceptTouchEvent(true)
+                    }
+                }
+                android.view.MotionEvent.ACTION_UP, android.view.MotionEvent.ACTION_CANCEL -> {
                     view.parent.requestDisallowInterceptTouchEvent(false)
                 }
             }
