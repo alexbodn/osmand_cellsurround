@@ -84,6 +84,8 @@ class OsmAndHelper(private val context: Context) {
                 val importSuccess = aidl.importGpx(importParams)
                 logger("OsmAndHelper: Imported new GPX: $importSuccess")
 
+                if (!importSuccess) return@withContext false
+
                 if (importSuccess) {
                     val showParams = ShowGpxParams("cellular_surround.gpx")
                     // Show might need the relative path / cache path depending on OsmAnd version.
