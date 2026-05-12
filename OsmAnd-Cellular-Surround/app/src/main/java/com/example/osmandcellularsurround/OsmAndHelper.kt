@@ -78,6 +78,8 @@ class OsmAndHelper(private val context: Context) {
                 val removeParams = RemoveGpxParams("cellular_surround.gpx")
                 val removeSuccess = aidl.removeGpx(removeParams)
                 logger("OsmAndHelper: Removed old GPX: $removeSuccess")
+                // if we fail here, plugin is disabled or package changed
+                if (!removeSuccess) return@withContext false
 
                 // To avoid intent-firing confirmations, use the official aidl file imports.
                 val importParams = ImportGpxParams(gpxUri, "cellular_surround.gpx", "", true)

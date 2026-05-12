@@ -314,6 +314,11 @@
                         android:text="Reload" />
 
                     <Button
+                        android:id="@+id/btnBaseTowersSql"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="Default" />
+                    <Button
                         android:id="@+id/btnSaveTowersSql"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
@@ -360,6 +365,11 @@
                         android:layout_height="wrap_content"
                         android:text="Open File" />
 
+                    <Button
+                        android:id="@+id/btnSaveFile"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="Save File" />
                     <Button
                         android:id="@+id/btnRunFile"
                         android:layout_width="match_parent"

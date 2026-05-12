@@ -307,6 +307,16 @@ class MainActivity : AppCompatActivity() {
         }
 
         binding.btnDefaultTowersSql.setOnClickListener {
+            val oldSavedSqlLocal = sharedPrefs.getString(KEY_SQL, "")
+            val savedTowersSqlLocal = sharedPrefs.getString(KEY_TOWERS_SQL, oldSavedSqlLocal)
+            if (!savedTowersSqlLocal.isNullOrEmpty()) {
+                binding.etTowersSql.setText(savedTowersSqlLocal)
+            } else {
+                binding.etTowersSql.setText(defaultTowersSql)
+            }
+        }
+
+        binding.btnBaseTowersSql.setOnClickListener {
             binding.etTowersSql.setText(defaultTowersSql)
         }
 
@@ -384,6 +394,48 @@ class MainActivity : AppCompatActivity() {
                     }
                 }
             }
+        }
+
+        val saveFileLauncher = registerForActivityResult(ActivityResultContracts.CreateDocument("application/sql")) { uri ->
+            uri?.let {
+                lifecycleScope.launch {
+                    try {
+                        withContext(Dispatchers.IO) {
+                            contentResolver.openOutputStream(it)?.use { outputStream ->
+                                val text = binding.etSql.text.toString()
+                                outputStream.write(text.toByteArray())
+                                withContext(Dispatchers.Main) {
+                                    Toast.makeText(this@MainActivity, "File saved", Toast.LENGTH_SHORT).show()
+                                }
+                            }
+                        }
+                    } catch (e: Exception) {
+                        withContext(Dispatchers.Main) {
+                            Toast.makeText(this@MainActivity, "Failed to save file: ${e.message}", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                }
+            }
+        }
+
+        binding.etTowersSql.setOnTouchListener { view, event ->
+            view.parent.requestDisallowInterceptTouchEvent(true)
+            if ((event.action and android.view.MotionEvent.ACTION_MASK) == android.view.MotionEvent.ACTION_UP) {
+                view.parent.requestDisallowInterceptTouchEvent(false)
+            }
+            false
+        }
+
+        binding.etSql.setOnTouchListener { view, event ->
+            view.parent.requestDisallowInterceptTouchEvent(true)
+            if ((event.action and android.view.MotionEvent.ACTION_MASK) == android.view.MotionEvent.ACTION_UP) {
+                view.parent.requestDisallowInterceptTouchEvent(false)
+            }
+            false
+        }
+
+        binding.btnSaveFile.setOnClickListener {
+            saveFileLauncher.launch("query.sql")
         }
 
         binding.btnOpenFile.setOnClickListener {

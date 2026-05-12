@@ -44,30 +44,47 @@ object GpxGenerator {
             allTowers.add(tower)
         }
 
-        // Group by exact lat/lon
-        val groupedTowers = allTowers.groupBy { Pair(it.lat, it.lon) }
+        var currentLat: Double? = null
+        var currentLon: Double? = null
+        val currentDescs = mutableListOf<String>()
+        var currentHasMain = false
 
-        // Order results by lat, lon
-        val sortedGroups = groupedTowers.entries.sortedWith(compareBy({ it.key.first }, { it.key.second }))
+        fun appendGroup() {
+            if (currentLat != null && currentLon != null) {
+                val descStr = currentDescs.distinct().joinToString("\n")
+                val type = if (currentHasMain) "main_tower" else "surrounding_tower"
+                val color = if (currentHasMain) "#00FF00" else "#0000FF"
 
-        for ((location, towersAtLocation) in sortedGroups) {
-            val hasMainTower = mainTower != null && location.first == mainTower.lat && location.second == mainTower.lon && towersAtLocation.any { it.desc == "${mainTower.mcc}-${mainTower.mnc}-${mainTower.lac}-${mainTower.cid}" }
-            val descStr = towersAtLocation.mapNotNull { it.desc }.distinct().joinToString("\n")
-
-            val type = if (hasMainTower) "main_tower" else "surrounding_tower"
-            val color = if (hasMainTower) "#00FF00" else "#0000FF"
-
-            gpxStr.append("  <wpt lat=\"${location.first}\" lon=\"${location.second}\">\n")
-            if (hasMainTower) {
-                gpxStr.append("    <time>$timeString</time>\n")
+                gpxStr.append("  <wpt lat=\"${currentLat}\" lon=\"${currentLon}\">\n")
+                if (currentHasMain) {
+                    gpxStr.append("    <time>$timeString</time>\n")
+                }
+                gpxStr.append("    <desc>$descStr</desc>\n")
+                gpxStr.append("    <type>$type</type>\n")
+                gpxStr.append("    <extensions>\n")
+                gpxStr.append("      <osmand:color>$color</osmand:color>\n")
+                gpxStr.append("    </extensions>\n")
+                gpxStr.append("  </wpt>\n")
             }
-            gpxStr.append("    <desc>$descStr</desc>\n")
-            gpxStr.append("    <type>$type</type>\n")
-            gpxStr.append("    <extensions>\n")
-            gpxStr.append("      <osmand:color>$color</osmand:color>\n")
-            gpxStr.append("    </extensions>\n")
-            gpxStr.append("  </wpt>\n")
         }
+
+        for (tower in allTowers) {
+            if (currentLat == tower.lat && currentLon == tower.lon) {
+                tower.desc?.let { currentDescs.add(it) }
+                if (mainTower != null && tower.desc == "${mainTower.mcc}-${mainTower.mnc}-${mainTower.lac}-${mainTower.cid}") {
+                    currentHasMain = true
+                }
+            } else {
+                appendGroup()
+
+                currentLat = tower.lat
+                currentLon = tower.lon
+                currentDescs.clear()
+                tower.desc?.let { currentDescs.add(it) }
+                currentHasMain = (mainTower != null && tower.lat == mainTower.lat && tower.lon == mainTower.lon && tower.desc == "${mainTower.mcc}-${mainTower.mnc}-${mainTower.lac}-${mainTower.cid}")
+            }
+        }
+        appendGroup()
 
         gpxStr.append("  <extensions>\n")
         gpxStr.append("    <osmand:show_start_finish>false</osmand:show_start_finish>\n")
