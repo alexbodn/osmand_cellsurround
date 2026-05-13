@@ -753,7 +753,9 @@ class MainActivity : AppCompatActivity() {
                             appendLog("GNSS location acquired.")
                         } else {
                             withContext(Dispatchers.Main) { Toast.makeText(this@MainActivity, "Failed to get reliable GNSS location.", Toast.LENGTH_SHORT).show() }
-                            appendLog("Status: Failed to acquire GNSS location within 5 seconds. Falling back to cell location.")
+                            appendLog("Status: Failed to acquire GNSS location within 5 seconds.")
+                            withContext(Dispatchers.Main) { binding.btnScan.isEnabled = true }
+                            return@launch
                         }
                     }
                 } catch (e: SecurityException) {
@@ -874,12 +876,12 @@ class MainActivity : AppCompatActivity() {
                     appendLog("No valid bounding box and no custom SQL provided. Aborting scan.")
                     emptyList()
                 }
-                
+
                 if (surroundingTowers.isEmpty()) {
                     appendLog("No towers found at ${actualRadiusKm}km radius. Expanding radius...")
                     currentTryRadiusPosition++
                 }
-            
+
             }
 
             val radiusKm = actualRadiusKm // Use final actual radius for zoom calculations downstream
