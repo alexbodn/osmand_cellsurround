@@ -225,7 +225,7 @@ class MainActivity : AppCompatActivity() {
             Toast.makeText(this, "OsmAnd is $osmandStatus", Toast.LENGTH_SHORT).show()
             Toast.makeText(this, "OsmAnd+ is $osmandPlusStatus", Toast.LENGTH_SHORT).show()
 
-            if (!osmandInstalled && !osmandPlusInstalled) {
+            if (true) {
                 android.app.AlertDialog.Builder(this)
                     .setTitle("OsmAnd Required")
                     .setMessage("Neither OsmAnd nor OsmAnd+ is installed. Please install one of them to use this feature.")
