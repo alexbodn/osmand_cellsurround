@@ -30,6 +30,7 @@ object GpxGenerator {
 
         gpxStr.append("  <metadata>\n")
         gpxStr.append("    <name>cellular_surround</name>\n")
+        gpxStr.append("    <desc>© OpenCelliD Project is licensed under a Creative Commons Attribution-ShareAlike 4.0 International License.</desc>\n")
         gpxStr.append("  </metadata>\n")
 
         // Main connected tower (highlighted in color)

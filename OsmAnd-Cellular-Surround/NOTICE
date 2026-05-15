@@ -1,0 +1,13 @@
+OsmAnd Cellular Surround
+
+This software relies on the following open source projects and data:
+
+1. OpenCelliD
+   The cell tower data is provided by the OpenCelliD Project.
+   Data is licensed under the Creative Commons Attribution-ShareAlike 4.0 International License (CC BY-SA 4.0).
+   https://opencellid.org/
+
+2. OsmAnd AIDL Library
+   This project uses the OsmAnd AIDL library (net.osmand:android-aidl-lib) to communicate with the OsmAnd application.
+   The AIDL interface sample code and library are licensed under the MIT License.
+   https://github.com/osmandapp/OsmAnd-api-sample

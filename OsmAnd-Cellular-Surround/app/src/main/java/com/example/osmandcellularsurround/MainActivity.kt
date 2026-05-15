@@ -159,6 +159,21 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
+        binding.btnClear.setOnClickListener {
+            lifecycleScope.launch {
+                val isConnected = osmandHelper.connect()
+                if (isConnected) {
+                    osmandHelper.hideSurroundings { msg ->
+                        lifecycleScope.launch(Dispatchers.Main) {
+                            appendLog(msg)
+                        }
+                    }
+                } else {
+                    appendLog("Failed to connect to OsmAnd for clearing.")
+                }
+            }
+        }
+
         binding.btnCopyLog.setOnClickListener {
             val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
             val isSqlTab = binding.tabLayout.selectedTabPosition == 1

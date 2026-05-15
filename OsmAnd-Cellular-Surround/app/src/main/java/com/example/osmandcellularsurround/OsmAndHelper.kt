@@ -113,4 +113,30 @@ class OsmAndHelper(private val context: Context) {
             }
         }
     }
+
+    suspend fun hideSurroundings(logger: (String) -> Unit) {
+        val aidl = osmandService ?: return
+
+        withContext(Dispatchers.IO) {
+            try {
+                // Remove the GPX track
+                val removeParams = RemoveGpxParams("cellular_surround.gpx")
+                val removeSuccess = aidl.removeGpx(removeParams)
+                logger("OsmAndHelper: Removed GPX: $removeSuccess")
+
+                // Optionally launch OsmAnd to show the clear state
+                val packageManager = context.packageManager
+                val launchIntent = packageManager.getLaunchIntentForPackage("net.osmand.plus")
+                    ?: packageManager.getLaunchIntentForPackage("net.osmand")
+                if (launchIntent != null) {
+                    launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                    context.startActivity(launchIntent)
+                    logger("OsmAndHelper: Launched app intent after clear")
+                }
+            } catch (e: Exception) {
+                logger("OsmAndHelper: Exception during AIDL clear: ${e.message}")
+                e.printStackTrace()
+            }
+        }
+    }
 }
