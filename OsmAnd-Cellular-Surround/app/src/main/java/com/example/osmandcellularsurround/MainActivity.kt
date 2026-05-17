@@ -77,6 +77,8 @@ class MainActivity : AppCompatActivity() {
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
+        handleIntent(intent)
+
         // Setup API Key label with clickable link
         binding.tvApiKeyLabel.text = HtmlCompat.fromHtml(getString(R.string.api_key_label), HtmlCompat.FROM_HTML_MODE_COMPACT)
         binding.tvApiKeyLabel.movementMethod = LinkMovementMethod.getInstance()
@@ -533,6 +535,58 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        handleIntent(intent)
+    }
+
+    private fun handleIntent(intent: Intent?) {
+        if (intent == null) return
+
+        var latLonStr: String? = null
+
+        if (intent.action == Intent.ACTION_SEND && "text/plain" == intent.type) {
+            val sharedText = intent.getStringExtra(Intent.EXTRA_TEXT)
+            if (sharedText != null) {
+                // Try to parse typical OsmAnd geo share URLs (e.g., https://osmand.net/go?lat=...&lon=...)
+                try {
+                    val uri = android.net.Uri.parse(sharedText)
+                    if (uri != null && uri.isHierarchical) {
+                        val lat = uri.getQueryParameter("lat")
+                        val lon = uri.getQueryParameter("lon")
+                        if (lat != null && lon != null) {
+                            latLonStr = "$lat, $lon"
+                        }
+                    }
+                } catch (e: Exception) {
+                    // Ignore unsupported URI formats from plain text shares
+                }
+            }
+        } else if (intent.action == Intent.ACTION_VIEW && intent.data != null) {
+            val uri = intent.data
+            if (uri?.scheme == "geo") {
+                val schemeSpecificPart = uri.schemeSpecificPart
+                // e.g. geo:37.7749,-122.4194?q=...
+                val coordsPart = schemeSpecificPart.split("?")[0]
+                val parts = coordsPart.split(",")
+                if (parts.size >= 2) {
+                    val lat = parts[0]
+                    val lon = parts[1]
+                    latLonStr = "$lat, $lon"
+                }
+            }
+        }
+
+        if (latLonStr != null) {
+            // Update UI on main thread just in case
+            lifecycleScope.launch(Dispatchers.Main) {
+                binding.etManualLocation.setText(latLonStr)
+                binding.cbManualLocation.isChecked = true
+                binding.tabLayout.getTabAt(1)?.select() // Switch to CONFIG tab
+            }
+        }
+    }
+
     override fun onResume() {
         super.onResume()
 
@@ -716,16 +770,34 @@ class MainActivity : AppCompatActivity() {
             var gnssLat: Double? = null
             var gnssLon: Double? = null
             val isLocateGnss = binding.cbLocateGnss.isChecked
+            val isManualGnss = binding.cbManualLocation.isChecked
+            val manualLocationText = binding.etManualLocation.text.toString().trim()
 
             if (isLocateGnss) {
-                if (!hasPermissions()) {
-                    withContext(Dispatchers.Main) { Toast.makeText(this@MainActivity, "Location permissions required for GNSS.", Toast.LENGTH_SHORT).show() }
-                    withContext(Dispatchers.Main) { binding.btnScan.isEnabled = true }
-                    return@launch
-                }
+                if (isManualGnss && manualLocationText.isNotEmpty()) {
+                    try {
+                        val parts = manualLocationText.split(",")
+                        if (parts.size >= 2) {
+                            gnssLat = parts[0].trim().toDouble()
+                            gnssLon = parts[1].trim().toDouble()
+                            appendLog("Using manual location: $gnssLat, $gnssLon")
+                        } else {
+                            throw NumberFormatException("Invalid format")
+                        }
+                    } catch (e: Exception) {
+                        withContext(Dispatchers.Main) { Toast.makeText(this@MainActivity, "Invalid manual location format. Use lat, lon.", Toast.LENGTH_SHORT).show() }
+                        withContext(Dispatchers.Main) { binding.btnScan.isEnabled = true }
+                        return@launch
+                    }
+                } else {
+                    if (!hasPermissions()) {
+                        withContext(Dispatchers.Main) { Toast.makeText(this@MainActivity, "Location permissions required for GNSS.", Toast.LENGTH_SHORT).show() }
+                        withContext(Dispatchers.Main) { binding.btnScan.isEnabled = true }
+                        return@launch
+                    }
 
-                appendLog("Status: Acquiring GNSS location...")
-                try {
+                    appendLog("Status: Acquiring GNSS location...")
+                    try {
                     val lastKnown = locationManager?.getLastKnownLocation(LocationManager.GPS_PROVIDER)
                     if (lastKnown != null && lastKnown.hasAccuracy() && lastKnown.accuracy < 20f &&
                         (System.currentTimeMillis() - lastKnown.time < 30000)) {
@@ -775,6 +847,7 @@ class MainActivity : AppCompatActivity() {
                     withContext(Dispatchers.Main) { Toast.makeText(this@MainActivity, "Location permissions denied.", Toast.LENGTH_SHORT).show() }
                     withContext(Dispatchers.Main) { binding.btnScan.isEnabled = true }
                     return@launch
+                }
                 }
             }
 

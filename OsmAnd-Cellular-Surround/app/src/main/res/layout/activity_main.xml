@@ -260,6 +260,21 @@
                 android:text="Verbose mode"
                 android:layout_marginBottom="8dp" />
 
+            <CheckBox
+                android:id="@+id/cbManualLocation"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Use manual location (GNSS)"
+                android:layout_marginBottom="8dp" />
+
+            <EditText
+                android:id="@+id/etManualLocation"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="e.g. 40.7128, -74.0060"
+                android:inputType="text"
+                android:layout_marginBottom="8dp" />
+
             <TextView
                 android:id="@+id/tvCellInfoLabel"
                 android:layout_width="wrap_content"
