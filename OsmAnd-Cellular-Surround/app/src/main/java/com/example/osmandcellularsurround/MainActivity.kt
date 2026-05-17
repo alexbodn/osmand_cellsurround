@@ -548,6 +548,7 @@ class MainActivity : AppCompatActivity() {
         if (intent.action == Intent.ACTION_SEND && "text/plain" == intent.type) {
             val sharedText = intent.getStringExtra(Intent.EXTRA_TEXT)
             if (sharedText != null) {
+                Toast.makeText(this, "Received Share: $sharedText", Toast.LENGTH_LONG).show()
                 // Try to parse typical OsmAnd geo share URLs (e.g., https://osmand.net/go?lat=...&lon=...)
                 try {
                     val uri = android.net.Uri.parse(sharedText)
@@ -564,6 +565,7 @@ class MainActivity : AppCompatActivity() {
             }
         } else if (intent.action == Intent.ACTION_VIEW && intent.data != null) {
             val uri = intent.data
+            Toast.makeText(this, "Received URI: ${intent.dataString}", Toast.LENGTH_LONG).show()
             if (uri?.scheme == "geo") {
                 val schemeSpecificPart = uri.schemeSpecificPart
                 // e.g. geo:37.7749,-122.4194?q=...
