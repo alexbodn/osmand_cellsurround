@@ -5,7 +5,7 @@ OsmAnd Cellular Surround is an Android application that serves as an external pl
 ## Features
 
 - **Cell Tower Mapping**: Locate and display nearby cell towers on the map.
-- **Offline Data**: Uses a local Room SQLite database to cache cell tower data for offline geographic queries.
+- **Offline Data**: Uses a local Room SQLite database to cache cell tower data for offline queries.
 - **Integration with OsmAnd**: Automatically exports map markers and opens them in OsmAnd using AIDL IPC.
 - **OpenCelliD Support**: Fetches missing tower data from OpenCelliD API.
 - **Data Donation**: Allows users to contribute live cell tower measurements back to OpenCelliD directly from the application.
@@ -14,7 +14,7 @@ OsmAnd Cellular Surround is an Android application that serves as an external pl
 ## Setup and Requirements
 
 - The app requires Android 9 (API 28) or higher.
-- In order to send waypoints automatically to OsmAnd, you must have the **OsmAnd development plugin** enabled within your OsmAnd application.
+- In order to send waypoints automatically to OsmAnd, you must have the **cellular surround plugin** enabled within your OsmAnd application.
 
 ## How to use
 
