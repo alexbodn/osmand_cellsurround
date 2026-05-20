@@ -9,9 +9,14 @@ on:
   workflow_dispatch:
     branches: [ "*" ]
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
 
     steps:
     - uses: actions/checkout@v4
@@ -43,3 +48,5 @@ jobs:
       if: startsWith(github.ref, 'refs/tags/')
       with:
         files: OsmAnd-Cellular-Surround/app/build/outputs/apk/release/osmand-cellsurround.apk
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
