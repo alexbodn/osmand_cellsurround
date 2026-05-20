@@ -3,6 +3,7 @@ name: Android Build
 on:
   push:
     branches: [ "main", "*" ]
+    tags: [ "v*.*.*" ]
   pull_request:
     branches: [ "main" ]
   workflow_dispatch:
@@ -31,8 +32,14 @@ jobs:
     - name: Rename APK
       run: mv OsmAnd-Cellular-Surround/app/build/outputs/apk/release/app-release.apk OsmAnd-Cellular-Surround/app/build/outputs/apk/release/osmand-cellsurround.apk
 
-    - name: Upload APK
+    - name: Upload APK Artifact
       uses: actions/upload-artifact@v4
       with:
         name: osmand-cellsurround
         path: OsmAnd-Cellular-Surround/app/build/outputs/apk/release/osmand-cellsurround.apk
+
+    - name: Create Release and Upload APK
+      uses: softprops/action-gh-release@v2
+      if: startsWith(github.ref, 'refs/tags/')
+      with:
+        files: OsmAnd-Cellular-Surround/app/build/outputs/apk/release/osmand-cellsurround.apk
