@@ -703,6 +703,11 @@ class MainActivity : AppCompatActivity() {
                 }
             }
         }
+
+        lifecycleScope.launch {
+            Toast.makeText(this@MainActivity, "Calculating Map Data...", Toast.LENGTH_SHORT).show()
+            calculateCurrentMapData()
+        }
     }
 
     private fun donateLiveMeasurement(apiKey: String, cellInfo: TelephonyHelper.CellData, location: Location) {
