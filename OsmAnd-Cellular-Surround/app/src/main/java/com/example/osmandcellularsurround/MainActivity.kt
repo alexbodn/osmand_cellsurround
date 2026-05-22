@@ -340,7 +340,14 @@ class MainActivity : AppCompatActivity() {
 
                             val geoJson = "{\"type\":\"FeatureCollection\",\"features\":[${features}]}"
 
-                            shareIntent.putExtra(Intent.EXTRA_TEXT, geoJson)
+                            val bboxText = if (currentBoundingBox != null) {
+                                val bbox = currentBoundingBox!!
+                                "OSM Bounding Box: https://www.openstreetmap.org/?bbox=${bbox[2]},${bbox[0]},${bbox[3]},${bbox[1]}\n\n"
+                            } else {
+                                ""
+                            }
+
+                            shareIntent.putExtra(Intent.EXTRA_TEXT, "${bboxText}GeoJSON:\n$geoJson")
                             startActivity(Intent.createChooser(shareIntent, "Share Towers"))
                         } else {
                             Toast.makeText(this@MainActivity, "Towers not calculated yet.", Toast.LENGTH_SHORT).show()
