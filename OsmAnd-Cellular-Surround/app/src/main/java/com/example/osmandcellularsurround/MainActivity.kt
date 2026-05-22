@@ -951,11 +951,13 @@ class MainActivity : AppCompatActivity() {
         currentLocationLat = fallbackCenterLat ?: mainTower?.lat
         currentLocationLon = fallbackCenterLon ?: mainTower?.lon
 
-        if (currentLocationLat != null && currentLocationLon != null) {
-            withContext(kotlinx.coroutines.Dispatchers.Main) {
-                val url = "https://opencellid.org/#zoom=16&lat=${currentLocationLat}&lon=${currentLocationLon}"
-                binding.tvUserProfileLink.text = androidx.core.text.HtmlCompat.fromHtml("<a href=\"$url\">View your OpenCelliD Profile &amp; History</a>", androidx.core.text.HtmlCompat.FROM_HTML_MODE_COMPACT)
+        withContext(kotlinx.coroutines.Dispatchers.Main) {
+            val url = if (currentLocationLat != null && currentLocationLon != null) {
+                "https://opencellid.org/#zoom=16&lat=${currentLocationLat}&lon=${currentLocationLon}"
+            } else {
+                "https://opencellid.org/"
             }
+            binding.tvUserProfileLink.text = androidx.core.text.HtmlCompat.fromHtml("<a href=\"$url\">View your OpenCelliD Profile &amp; History</a>", androidx.core.text.HtmlCompat.FROM_HTML_MODE_COMPACT)
         }
 
         val radiusPosition = binding.spinnerRadius.selectedItemPosition
