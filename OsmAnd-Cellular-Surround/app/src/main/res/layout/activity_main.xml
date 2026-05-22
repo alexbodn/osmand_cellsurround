@@ -493,7 +493,15 @@
             android:layout_weight="1"
             android:layout_height="wrap_content"
             android:layout_marginStart="8dp"
-            android:text="CLEAR" />
+            android:text="CLEAR 🗺️" />
+
+        <Button
+            android:id="@+id/btnShare"
+            android:layout_width="0dp"
+            android:layout_weight="1"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:text="SHARE" />
     </LinearLayout>
 
 </androidx.constraintlayout.widget.ConstraintLayout>
