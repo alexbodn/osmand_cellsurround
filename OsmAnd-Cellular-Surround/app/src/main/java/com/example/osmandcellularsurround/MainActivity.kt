@@ -340,12 +340,12 @@ class MainActivity : AppCompatActivity() {
                             if (currentMainTower != null) {
                                 val t = currentMainTower!!
                                 val desc = "${t.mcc}-${t.mnc}-${t.lac}-${t.cid}"
-                                allFeatures.add("{\"type\":\"Feature\",\"geometry\":{\"type\":\"Point\",\"coordinates\":[${t.lon},${t.lat}]},\"properties\":{\"desc\":\"${desc}\",\"type\":\"main_tower\",\"img\":\"\"}}")
+                                allFeatures.add("{\"type\":\"Feature\",\"geometry\":{\"type\":\"Point\",\"coordinates\":[${t.lon},${t.lat}]},\"properties\":{\"desc\":\"${desc}\",\"img\":\"\"}}")
                             }
 
                             // Add surrounding towers
                             allFeatures.addAll(currentTowersList!!.map { tower ->
-                                "{\"type\":\"Feature\",\"geometry\":{\"type\":\"Point\",\"coordinates\":[${tower.lon},${tower.lat}]},\"properties\":{\"desc\":\"${tower.desc ?: ""}\",\"type\":\"surrounding_tower\",\"img\":\"\"}}"
+                                "{\"type\":\"Feature\",\"geometry\":{\"type\":\"Point\",\"coordinates\":[${tower.lon},${tower.lat}]},\"properties\":{\"desc\":\"${tower.desc ?: ""}\",\"img\":\"\"}}"
                             })
 
                             val features = allFeatures.joinToString(",")
