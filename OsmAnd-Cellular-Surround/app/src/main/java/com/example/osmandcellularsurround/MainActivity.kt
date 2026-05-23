@@ -61,6 +61,7 @@ class MainActivity : AppCompatActivity() {
     private var currentLocationLon: Double? = null
     private var currentBoundingBox: DoubleArray? = null
     private var currentTowersList: List<com.example.osmandcellularsurround.db.CellTowerResult>? = null
+    private var currentMainTower: com.example.osmandcellularsurround.db.CellTower? = null
 
     private var locationManager: LocationManager? = null
 
@@ -333,9 +334,21 @@ class MainActivity : AppCompatActivity() {
                             val shareIntent = Intent(Intent.ACTION_SEND)
                             shareIntent.type = "text/plain"
 
-                            val features = currentTowersList!!.map { tower ->
-                                "{\"type\":\"Feature\",\"geometry\":{\"type\":\"Point\",\"coordinates\":[${tower.lon},${tower.lat}]},\"properties\":{\"desc\":\"${tower.desc ?: ""}\",\"img\":\"\"}}"
-                            }.joinToString(",")
+                            val allFeatures = mutableListOf<String>()
+
+                            // Include main tower if exists
+                            if (currentMainTower != null) {
+                                val t = currentMainTower!!
+                                val desc = "${t.mcc}-${t.mnc}-${t.lac}-${t.cid}"
+                                allFeatures.add("{\"type\":\"Feature\",\"geometry\":{\"type\":\"Point\",\"coordinates\":[${t.lon},${t.lat}]},\"properties\":{\"desc\":\"${desc}\",\"type\":\"main_tower\",\"img\":\"\"}}")
+                            }
+
+                            // Add surrounding towers
+                            allFeatures.addAll(currentTowersList!!.map { tower ->
+                                "{\"type\":\"Feature\",\"geometry\":{\"type\":\"Point\",\"coordinates\":[${tower.lon},${tower.lat}]},\"properties\":{\"desc\":\"${tower.desc ?: ""}\",\"type\":\"surrounding_tower\",\"img\":\"\"}}"
+                            })
+
+                            val features = allFeatures.joinToString(",")
 
                             val geoJson = "{\"type\":\"FeatureCollection\",\"features\":[${features}]}"
 
@@ -1013,6 +1026,7 @@ class MainActivity : AppCompatActivity() {
             }
         }
         currentTowersList = surroundingTowers
+        currentMainTower = mainTower
     }
 
 
