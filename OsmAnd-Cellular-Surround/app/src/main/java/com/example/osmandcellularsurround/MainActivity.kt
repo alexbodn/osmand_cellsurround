@@ -297,9 +297,8 @@ class MainActivity : AppCompatActivity() {
 
         binding.btnShare.setOnClickListener {
             lifecycleScope.launch {
-                if (currentLocationLat == null || currentBoundingBox == null || currentTowersList == null) {
-                    calculateCurrentMapData()
-                }
+                Toast.makeText(this@MainActivity, "Calculating Map Data...", Toast.LENGTH_SHORT).show()
+                calculateCurrentMapData()
 
                 val popup = android.widget.PopupMenu(this@MainActivity, binding.btnShare)
             popup.menu.add("Current Location")
