@@ -56,6 +56,13 @@ class MainActivity : AppCompatActivity() {
     private var currentMinLon: Double? = null
     private var currentMaxLon: Double? = null
 
+    // Global state variables for sharing and link generation
+    private var currentLocationLat: Double? = null
+    private var currentLocationLon: Double? = null
+    private var currentBoundingBox: DoubleArray? = null
+    private var currentTowersList: List<com.example.osmandcellularsurround.db.CellTowerResult>? = null
+    private var currentMainTower: com.example.osmandcellularsurround.db.CellTower? = null
+
     private var locationManager: LocationManager? = null
 
     private val requestPermissionLauncher = registerForActivityResult(
@@ -160,6 +167,10 @@ class MainActivity : AppCompatActivity() {
 
         // Select initial tab
         binding.tabLayout.getTabAt(0)?.select()
+
+        lifecycleScope.launch {
+            calculateCurrentMapData()
+        }
 
         // Load saved preferences
         val savedKey = sharedPrefs.getString(KEY_API_KEY, "")
@@ -281,6 +292,83 @@ class MainActivity : AppCompatActivity() {
                         Manifest.permission.READ_PHONE_STATE
                     )
                 )
+            }
+        }
+
+
+        binding.btnShare.setOnClickListener {
+            lifecycleScope.launch {
+                Toast.makeText(this@MainActivity, "Calculating Map Data...", Toast.LENGTH_SHORT).show()
+                calculateCurrentMapData()
+
+                val popup = android.widget.PopupMenu(this@MainActivity, binding.btnShare)
+            popup.menu.add("Current Location")
+            popup.menu.add("Current Bounding Box")
+            popup.menu.add("Current Towers")
+
+            popup.setOnMenuItemClickListener { item ->
+                when (item.title) {
+                    "Current Location" -> {
+                        if (currentLocationLat != null && currentLocationLon != null) {
+                            val shareIntent = Intent(Intent.ACTION_SEND)
+                            shareIntent.type = "text/plain"
+                            shareIntent.putExtra(Intent.EXTRA_TEXT, "geo:${currentLocationLat},${currentLocationLon}")
+                            startActivity(Intent.createChooser(shareIntent, "Share Location"))
+                        } else {
+                            Toast.makeText(this@MainActivity, "Location not calculated yet.", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                    "Current Bounding Box" -> {
+                        if (currentBoundingBox != null) {
+                            val bbox = currentBoundingBox!!
+                            val shareIntent = Intent(Intent.ACTION_SEND)
+                            shareIntent.type = "text/plain"
+                            shareIntent.putExtra(Intent.EXTRA_TEXT, "https://www.openstreetmap.org/?bbox=${bbox[2]},${bbox[0]},${bbox[3]},${bbox[1]}")
+                            startActivity(Intent.createChooser(shareIntent, "Share Bounding Box"))
+                        } else {
+                            Toast.makeText(this@MainActivity, "Bounding box not calculated yet.", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                    "Current Towers" -> {
+                        if (currentTowersList != null && currentTowersList!!.isNotEmpty()) {
+                            val shareIntent = Intent(Intent.ACTION_SEND)
+                            shareIntent.type = "text/plain"
+
+                            val allFeatures = mutableListOf<String>()
+
+                            // Include main tower if exists
+                            if (currentMainTower != null) {
+                                val t = currentMainTower!!
+                                val desc = "${t.mcc}-${t.mnc}-${t.lac}-${t.cid}"
+                                allFeatures.add("{\"type\":\"Feature\",\"geometry\":{\"type\":\"Point\",\"coordinates\":[${t.lon},${t.lat}]},\"properties\":{\"desc\":\"${desc}\",\"img\":\"\"}}")
+                            }
+
+                            // Add surrounding towers
+                            allFeatures.addAll(currentTowersList!!.map { tower ->
+                                "{\"type\":\"Feature\",\"geometry\":{\"type\":\"Point\",\"coordinates\":[${tower.lon},${tower.lat}]},\"properties\":{\"desc\":\"${tower.desc ?: ""}\",\"img\":\"\"}}"
+                            })
+
+                            val features = allFeatures.joinToString(",")
+
+                            val geoJson = "{\"type\":\"FeatureCollection\",\"features\":[${features}]}"
+
+                            val bboxText = if (currentBoundingBox != null) {
+                                val bbox = currentBoundingBox!!
+                                "OSM Bounding Box: https://www.openstreetmap.org/?bbox=${bbox[2]},${bbox[0]},${bbox[3]},${bbox[1]}\n\n"
+                            } else {
+                                ""
+                            }
+
+                            shareIntent.putExtra(Intent.EXTRA_TEXT, "${bboxText}GeoJSON:\n$geoJson")
+                            startActivity(Intent.createChooser(shareIntent, "Share Towers"))
+                        } else {
+                            Toast.makeText(this@MainActivity, "Towers not calculated yet.", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                }
+                true
+            }
+                popup.show()
             }
         }
 
@@ -634,6 +722,11 @@ class MainActivity : AppCompatActivity() {
                 }
             }
         }
+
+        lifecycleScope.launch {
+            Toast.makeText(this@MainActivity, "Calculating Map Data...", Toast.LENGTH_SHORT).show()
+            calculateCurrentMapData()
+        }
     }
 
     private fun donateLiveMeasurement(apiKey: String, cellInfo: TelephonyHelper.CellData, location: Location) {
@@ -764,6 +857,179 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+
+    private suspend fun calculateCurrentMapData() {
+        val apiKey = sharedPrefs.getString(KEY_API_KEY, "") ?: ""
+        val cellInfoStr = binding.etCellInfo.text.toString().trim()
+
+        var parsedRadio = ""
+        var parsedMcc: Int? = null
+        var parsedMnc: Int? = null
+        var parsedLac: Int? = null
+        var parsedCid: Long? = null
+
+        if (cellInfoStr.isNotEmpty()) {
+            val parts = cellInfoStr.split(",")
+            if (parts.size == 5) {
+                parsedRadio = parts[0].trim()
+                parsedMcc = parts[1].trim().toIntOrNull()
+                parsedMnc = parts[2].trim().toIntOrNull()
+                parsedLac = parts[3].trim().toIntOrNull()
+                parsedCid = parts[4].trim().toLongOrNull()
+            }
+        }
+
+        var gnssLat: Double? = null
+        var gnssLon: Double? = null
+        val isLocateGnss = binding.cbLocateGnss.isChecked
+        val isManualGnss = binding.cbManualLocation.isChecked
+        val manualLocationText = binding.etManualLocation.text.toString().trim()
+
+        if (isLocateGnss) {
+            if (isManualGnss && manualLocationText.isNotEmpty()) {
+                try {
+                    val manualParts = manualLocationText.split(",")
+                    if (manualParts.size >= 2) {
+                        gnssLat = manualParts[0].trim().toDouble()
+                        gnssLon = manualParts[1].trim().toDouble()
+                    }
+                } catch (e: Exception) {
+                    // Ignore
+                }
+            } else {
+                if (hasPermissions()) {
+                    try {
+                        val lastKnown = locationManager?.getLastKnownLocation(LocationManager.GPS_PROVIDER)
+                        if (lastKnown != null && lastKnown.hasAccuracy() && lastKnown.accuracy < 20f &&
+                            (System.currentTimeMillis() - lastKnown.time < 30000)) {
+                            gnssLat = lastKnown.latitude
+                            gnssLon = lastKnown.longitude
+                        } else {
+                            val location = kotlinx.coroutines.suspendCancellableCoroutine<Location?> { cont ->
+                                var contResumed = false
+                                val listener = object : LocationListener {
+                                    override fun onLocationChanged(loc: Location) {
+                                        if (loc.hasAccuracy() && loc.accuracy < 20f && !contResumed) {
+                                            locationManager?.removeUpdates(this)
+                                            contResumed = true
+                                            cont.resume(loc)
+                                        }
+                                    }
+                                    override fun onStatusChanged(provider: String?, status: Int, extras: Bundle?) {}
+                                    override fun onProviderEnabled(provider: String) {}
+                                    override fun onProviderDisabled(provider: String) {}
+                                }
+                                locationManager?.requestLocationUpdates(LocationManager.GPS_PROVIDER, 1000L, 0f, listener)
+
+                                binding.root.postDelayed({
+                                    locationManager?.removeUpdates(listener)
+                                    if (!contResumed) {
+                                        contResumed = true
+                                        cont.resume(null)
+                                    }
+                                }, 5000)
+
+                                cont.invokeOnCancellation {
+                                    locationManager?.removeUpdates(listener)
+                                }
+                            }
+                            if (location != null) {
+                                gnssLat = location.latitude
+                                gnssLon = location.longitude
+                            }
+                        }
+                    } catch (e: SecurityException) {
+                        // Ignore
+                    }
+                }
+            }
+        }
+
+        val mainTower = if (parsedRadio.isNotEmpty() && parsedMcc != null && parsedMnc != null && parsedLac != null && parsedCid != null) {
+            dataSyncManager.ensureCellTowerExistsAndGet(
+                apiKey, parsedRadio, parsedMcc, parsedMnc, parsedLac, parsedCid
+            ) { }
+        } else null
+
+        val dao = AppDatabase.getDatabase(this@MainActivity).cellTowerDao()
+        var fallbackCenterLat: Double? = null
+        var fallbackCenterLon: Double? = null
+
+        if (gnssLat != null && gnssLon != null) {
+            fallbackCenterLat = gnssLat
+            fallbackCenterLon = gnssLon
+        } else if (mainTower == null && parsedMcc != null && parsedMnc != null && parsedLac != null) {
+            val lacTowers = dao.getAllTowersInLac(parsedMcc, parsedMnc, parsedLac)
+            if (lacTowers.isNotEmpty()) {
+                var sumLat = 0.0
+                var sumLon = 0.0
+                for (t in lacTowers) {
+                    sumLat += t.lat
+                    sumLon += t.lon
+                }
+                fallbackCenterLat = sumLat / lacTowers.size
+                fallbackCenterLon = sumLon / lacTowers.size
+            }
+        }
+
+        currentLocationLat = fallbackCenterLat ?: mainTower?.lat
+        currentLocationLon = fallbackCenterLon ?: mainTower?.lon
+
+        withContext(kotlinx.coroutines.Dispatchers.Main) {
+            val url = if (currentLocationLat != null && currentLocationLon != null) {
+                "https://opencellid.org/#zoom=16&lat=${currentLocationLat}&lon=${currentLocationLon}"
+            } else {
+                "https://opencellid.org/"
+            }
+            binding.tvUserProfileLink.text = androidx.core.text.HtmlCompat.fromHtml("<a href=\"$url\">View your OpenCelliD Profile &amp; History</a>", androidx.core.text.HtmlCompat.FROM_HTML_MODE_COMPACT)
+        }
+
+        val radiusPosition = binding.spinnerRadius.selectedItemPosition
+        val radiusValues = arrayOf(0.5, 1.0, 1.5, 2.5, 4.0, 5.0, 7.0, 10.0, 15.0, 20.0)
+        var actualRadiusKm = 4.0
+        var currentTryRadiusPosition = radiusPosition
+        val sqlEditorContent = binding.etTowersSql.text.toString().trim()
+        var surroundingTowers: List<com.example.osmandcellularsurround.db.CellTowerResult> = emptyList()
+
+        while (surroundingTowers.isEmpty() && currentTryRadiusPosition < radiusValues.size) {
+            actualRadiusKm = radiusValues[currentTryRadiusPosition]
+
+            if (currentLocationLat != null && currentLocationLon != null) {
+                val boundingBox = GpxGenerator.calculateBoundingBox(currentLocationLat!!, currentLocationLon!!, actualRadiusKm)
+                currentMinLat = boundingBox[0]
+                currentMaxLat = boundingBox[1]
+                currentMinLon = boundingBox[2]
+                currentMaxLon = boundingBox[3]
+                currentBoundingBox = boundingBox
+            } else {
+                currentMinLat = null
+                currentMaxLat = null
+                currentMinLon = null
+                currentMaxLon = null
+                currentBoundingBox = null
+            }
+
+            surroundingTowers = if (sqlEditorContent.isNotEmpty()) {
+                var finalSql = buildParameterizedSql(sqlEditorContent)
+                if (!finalSql.contains("ORDER BY", ignoreCase = true)) {
+                    finalSql += " ORDER BY lat, lon"
+                }
+                dao.getTowersViaSql(androidx.sqlite.db.SimpleSQLiteQuery(finalSql))
+            } else if (currentMinLat != null && currentMaxLat != null && currentMinLon != null && currentMaxLon != null) {
+                dao.getTowersInBoundingBox(currentMinLat!!, currentMaxLat!!, currentMinLon!!, currentMaxLon!!)
+            } else {
+                emptyList()
+            }
+
+            if (surroundingTowers.isEmpty()) {
+                currentTryRadiusPosition++
+            }
+        }
+        currentTowersList = surroundingTowers
+        currentMainTower = mainTower
+    }
+
+
     private fun performScan() {
         val apiKey = sharedPrefs.getString(KEY_API_KEY, "") ?: return
 
@@ -779,228 +1045,25 @@ class MainActivity : AppCompatActivity() {
             return
         }
 
-        val parsedRadio = parts[0].trim()
-        val parsedMcc = parts[1].trim().toIntOrNull()
-        val parsedMnc = parts[2].trim().toIntOrNull()
-        val parsedLac = parts[3].trim().toIntOrNull()
-        val parsedCid = parts[4].trim().toLongOrNull()
-
-        if (parsedMcc == null || parsedMnc == null || parsedLac == null || parsedCid == null) {
-            Toast.makeText(this, "Invalid cellular info numbers.", Toast.LENGTH_LONG).show()
-            return
-        }
-
         binding.tvStatus.text = ""
         appendLog("Status: Scanning edited cell data...")
         if (binding.cbVerbose.isChecked) { Toast.makeText(this, "Scanning edited cell data...", Toast.LENGTH_SHORT).show() }
         binding.btnScan.isEnabled = false
 
         lifecycleScope.launch {
+            calculateCurrentMapData()
 
-            var gnssLat: Double? = null
-            var gnssLon: Double? = null
-            val isLocateGnss = binding.cbLocateGnss.isChecked
-            val isManualGnss = binding.cbManualLocation.isChecked
-            val manualLocationText = binding.etManualLocation.text.toString().trim()
+            val surroundingTowers = currentTowersList ?: emptyList()
 
-            if (isLocateGnss) {
-                if (isManualGnss && manualLocationText.isNotEmpty()) {
-                    try {
-                        val parts = manualLocationText.split(",")
-                        if (parts.size >= 2) {
-                            gnssLat = parts[0].trim().toDouble()
-                            gnssLon = parts[1].trim().toDouble()
-                            appendLog("Using manual location: $gnssLat, $gnssLon")
-                        } else {
-                            throw NumberFormatException("Invalid format")
-                        }
-                    } catch (e: Exception) {
-                        withContext(Dispatchers.Main) { Toast.makeText(this@MainActivity, "Invalid manual location format. Use lat, lon.", Toast.LENGTH_SHORT).show() }
-                        withContext(Dispatchers.Main) { binding.btnScan.isEnabled = true }
-                        return@launch
-                    }
-                } else {
-                    if (!hasPermissions()) {
-                        withContext(Dispatchers.Main) { Toast.makeText(this@MainActivity, "Location permissions required for GNSS.", Toast.LENGTH_SHORT).show() }
-                        withContext(Dispatchers.Main) { binding.btnScan.isEnabled = true }
-                        return@launch
-                    }
-
-                    appendLog("Status: Acquiring GNSS location...")
-                    try {
-                    val lastKnown = locationManager?.getLastKnownLocation(LocationManager.GPS_PROVIDER)
-                    if (lastKnown != null && lastKnown.hasAccuracy() && lastKnown.accuracy < 20f &&
-                        (System.currentTimeMillis() - lastKnown.time < 30000)) {
-                        gnssLat = lastKnown.latitude
-                        gnssLon = lastKnown.longitude
-                        appendLog("GNSS location acquired quickly.")
-                    } else {
-                        val location = suspendCancellableCoroutine<Location?> { cont ->
-                            var contResumed = false
-                            val listener = object : LocationListener {
-                                override fun onLocationChanged(loc: Location) {
-                                    if (loc.hasAccuracy() && loc.accuracy < 20f && !contResumed) {
-                                        locationManager?.removeUpdates(this)
-                                        contResumed = true
-                                        cont.resume(loc)
-                                    }
-                                }
-                                override fun onStatusChanged(provider: String?, status: Int, extras: Bundle?) {}
-                                override fun onProviderEnabled(provider: String) {}
-                                override fun onProviderDisabled(provider: String) {}
-                            }
-                            locationManager?.requestLocationUpdates(LocationManager.GPS_PROVIDER, 1000L, 0f, listener)
-
-                            binding.btnScan.postDelayed({
-                                locationManager?.removeUpdates(listener)
-                                if (!contResumed) {
-                                    contResumed = true
-                                    cont.resume(null) // timeout
-                                }
-                            }, 5000)
-
-                            cont.invokeOnCancellation {
-                                locationManager?.removeUpdates(listener)
-                            }
-                        }
-
-                        if (location != null) {
-                            gnssLat = location.latitude
-                            gnssLon = location.longitude
-                            appendLog("GNSS location acquired.")
-                        } else {
-                            withContext(Dispatchers.Main) { Toast.makeText(this@MainActivity, "Failed to get reliable GNSS location.", Toast.LENGTH_SHORT).show() }
-                            appendLog("Status: Failed to acquire GNSS location within 5 seconds. Falling back to cell location.")
-                        }
-                    }
-                } catch (e: SecurityException) {
-                    withContext(Dispatchers.Main) { Toast.makeText(this@MainActivity, "Location permissions denied.", Toast.LENGTH_SHORT).show() }
-                    withContext(Dispatchers.Main) { binding.btnScan.isEnabled = true }
-                    return@launch
-                }
-                }
-            }
-
-
-            val msgConnected = "Resolving location for $parsedRadio MCC:$parsedMcc MNC:$parsedMnc LAC:$parsedLac CID:$parsedCid..."
-            appendLog(msgConnected)
-            if (binding.cbVerbose.isChecked) { Toast.makeText(this@MainActivity, "Resolving location...", Toast.LENGTH_SHORT).show() }
-
-            val mainTower = dataSyncManager.ensureCellTowerExistsAndGet(
-                apiKey,
-                parsedRadio,
-                parsedMcc,
-                parsedMnc,
-                parsedLac,
-                parsedCid
-            ) { logMsg ->
-                appendLog(logMsg)
-            }
-
-            var effectiveMainTower = mainTower
-
-            val radiusPosition = binding.spinnerRadius.selectedItemPosition
-            // Save it just in case they didn't hit Save Key
-            sharedPrefs.edit().putInt(KEY_RADIUS, radiusPosition).apply()
-
-            val radiusValues = arrayOf(0.5, 1.0, 1.5, 2.5, 4.0, 5.0, 7.0, 10.0, 15.0, 20.0)
+            // To get mainTower we can re-query or just get it since it's cached in DB
+            val parsedRadio = parts[0].trim()
+            val parsedMcc = parts[1].trim().toIntOrNull() ?: 0
+            val parsedMnc = parts[2].trim().toIntOrNull() ?: 0
+            val parsedLac = parts[3].trim().toIntOrNull() ?: 0
+            val parsedCid = parts[4].trim().toLongOrNull() ?: 0L
 
             val dao = AppDatabase.getDatabase(this@MainActivity).cellTowerDao()
-
-            var fallbackCenterLat: Double? = null
-            var fallbackCenterLon: Double? = null
-            val sqlEditorContent = binding.etTowersSql.text.toString().trim()
-
-            var surroundingTowers: List<com.example.osmandcellularsurround.db.CellTowerResult> = emptyList()
-            var currentTryRadiusPosition = radiusPosition
-            var actualRadiusKm = 4.0
-
-            if (gnssLat != null && gnssLon != null) {
-                fallbackCenterLat = gnssLat
-                fallbackCenterLon = gnssLon
-                appendLog("Using GNSS location as center: ($fallbackCenterLat, $fallbackCenterLon)")
-            } else if (effectiveMainTower == null) {
-                val msgFailed = "Failed to resolve exact location for CID:$parsedCid. Falling back to center of LAC:$parsedLac..."
-                appendLog(msgFailed)
-
-                val lacTowers = dao.getAllTowersInLac(parsedMcc, parsedMnc, parsedLac)
-                if (lacTowers.isNotEmpty()) {
-                    var sumLat = 0.0
-                    var sumLon = 0.0
-                    for (t in lacTowers) {
-                        sumLat += t.lat
-                        sumLon += t.lon
-                    }
-                    fallbackCenterLat = sumLat / lacTowers.size
-                    fallbackCenterLon = sumLon / lacTowers.size
-                    appendLog("Calculated LAC center from ${lacTowers.size} towers: ($fallbackCenterLat, $fallbackCenterLon)")
-                } else {
-                    appendLog("No towers found in LAC:$parsedLac. Bounds remain null.")
-                }
-            }
-
-            while (surroundingTowers.isEmpty() && currentTryRadiusPosition < radiusValues.size) {
-                actualRadiusKm = radiusValues[currentTryRadiusPosition]
-
-                if (fallbackCenterLat != null && fallbackCenterLon != null) {
-                    appendLog("Finding surrounding towers (${actualRadiusKm}km radius around fallback center)...")
-                    val boundingBox = GpxGenerator.calculateBoundingBox(fallbackCenterLat!!, fallbackCenterLon!!, actualRadiusKm)
-                    currentMinLat = boundingBox[0]
-                    currentMaxLat = boundingBox[1]
-                    currentMinLon = boundingBox[2]
-                    currentMaxLon = boundingBox[3]
-                } else if (effectiveMainTower != null) {
-                    val msgRadius = "Finding surrounding towers (${actualRadiusKm}km radius)..."
-                    appendLog(msgRadius)
-                    val boundingBox = GpxGenerator.calculateBoundingBox(effectiveMainTower.lat, effectiveMainTower.lon, actualRadiusKm)
-                    currentMinLat = boundingBox[0]
-                    currentMaxLat = boundingBox[1]
-                    currentMinLon = boundingBox[2]
-                    currentMaxLon = boundingBox[3]
-                } else {
-                    currentMinLat = null
-                    currentMaxLat = null
-                    currentMinLon = null
-                    currentMaxLon = null
-                }
-
-                surroundingTowers = if (sqlEditorContent.isNotEmpty()) {
-                    var finalSql = buildParameterizedSql(sqlEditorContent)
-                    if (!finalSql.contains("ORDER BY", ignoreCase = true)) {
-                        finalSql += " ORDER BY lat, lon"
-                    }
-                    appendLog("DB Query (via Towers SQL): $finalSql")
-                    dao.getTowersViaSql(SimpleSQLiteQuery(finalSql))
-                } else if (currentMinLat != null && currentMaxLat != null && currentMinLon != null && currentMaxLon != null) {
-                    appendLog("DB Query: getTowersInBoundingBox($currentMinLat, $currentMaxLat, $currentMinLon, $currentMaxLon)")
-                    dao.getTowersInBoundingBox(currentMinLat!!, currentMaxLat!!, currentMinLon!!, currentMaxLon!!)
-                } else {
-                    appendLog("No valid bounding box and no custom SQL provided. Aborting scan.")
-                    emptyList()
-                }
-                surroundingTowers = if (sqlEditorContent.isNotEmpty()) {
-                    var finalSql = buildParameterizedSql(sqlEditorContent)
-                    if (!finalSql.contains("ORDER BY", ignoreCase = true)) {
-                        finalSql += " ORDER BY lat, lon"
-                    }
-                    appendLog("DB Query (via Towers SQL): $finalSql")
-                    dao.getTowersViaSql(SimpleSQLiteQuery(finalSql))
-                } else if (currentMinLat != null && currentMaxLat != null && currentMinLon != null && currentMaxLon != null) {
-                    appendLog("DB Query: getTowersInBoundingBox($currentMinLat, $currentMaxLat, $currentMinLon, $currentMaxLon)")
-                    dao.getTowersInBoundingBox(currentMinLat!!, currentMaxLat!!, currentMinLon!!, currentMaxLon!!)
-                } else {
-                    appendLog("No valid bounding box and no custom SQL provided. Aborting scan.")
-                    emptyList()
-                }
-
-                if (surroundingTowers.isEmpty()) {
-                    appendLog("No towers found at ${actualRadiusKm}km radius. Expanding radius...")
-                    currentTryRadiusPosition++
-                }
-
-            }
-
-            val radiusKm = actualRadiusKm // Use final actual radius for zoom calculations downstream
+            val effectiveMainTower = dao.getCellTower(parsedMcc, parsedMnc, parsedCid)
 
             if (surroundingTowers.isEmpty()) {
                 val msgNoTowers = "No towers found."
@@ -1022,32 +1085,20 @@ class MainActivity : AppCompatActivity() {
 
             val connected = osmandHelper.connect()
             if (connected) {
+                val actualRadiusKm = 4.0 // fallback
+                val radiusKm = if (currentBoundingBox != null) {
+                    val latOffset = currentBoundingBox!![1] - currentBoundingBox!![0]
+                    (latOffset * 111.0) / 2.0
+                } else {
+                    4.0
+                }
+
                 // Zoom level heuristic: +1 zoom zooms in by 2x. We add 1.0 to fit the bounds tighter.
                 val zoomDouble = 16.0 - (Math.log(radiusKm / 0.5) / Math.log(2.0))
                 val zoomLevel = Math.max(2, Math.min(20, Math.round(zoomDouble).toInt()))
 
-                // Determine map center
-                val mapCenterLat: Double
-                val mapCenterLon: Double
-
-                if (fallbackCenterLat != null && fallbackCenterLon != null) {
-                    mapCenterLat = fallbackCenterLat
-                    mapCenterLon = fallbackCenterLon
-                } else if (effectiveMainTower != null) {
-                    mapCenterLat = effectiveMainTower.lat
-                    mapCenterLon = effectiveMainTower.lon
-                } else {
-                    // Ultimate fallback to average of returned towers
-                    var sumLat = 0.0
-                    var sumLon = 0.0
-                    for (t in surroundingTowers) {
-                        sumLat += t.lat
-                        sumLon += t.lon
-                    }
-                    mapCenterLat = sumLat / surroundingTowers.size
-                    mapCenterLon = sumLon / surroundingTowers.size
-                    appendLog("Map center defaulting to average of results: ($mapCenterLat, $mapCenterLon)")
-                }
+                val mapCenterLat = currentLocationLat ?: 0.0
+                val mapCenterLon = currentLocationLon ?: 0.0
 
                 withContext(Dispatchers.Main) {
                     val showSuccess = osmandHelper.showSurroundings(gpxUri, mapCenterLat, mapCenterLon, zoomLevel) { logMsg ->
@@ -1064,60 +1115,20 @@ class MainActivity : AppCompatActivity() {
                         android.app.AlertDialog.Builder(this@MainActivity)
                             .setTitle("Action Required")
                             .setMessage("Please install OsmAnd if it is not installed, and enable the Cellular Surround plugin in OsmAnd's plugin menu first.")
-                            .setPositiveButton("Open OsmAnd") { _, _ ->
-                                val launchIntent = packageManager.getLaunchIntentForPackage("net.osmand.plus")
-                                    ?: packageManager.getLaunchIntentForPackage("net.osmand")
-                                if (launchIntent != null) {
-                                    launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
-                                    startActivity(launchIntent)
-                                } else {
-                                    try {
-                                        val playStoreIntent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse("market://details?id=net.osmand.plus"))
-                                        playStoreIntent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
-                                        startActivity(playStoreIntent)
-                                    } catch (e: Exception) {
-                                        val webIntent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse("https://play.google.com/store/apps/details?id=net.osmand.plus"))
-                                        startActivity(webIntent)
-                                    }
-                                }
-                            }
-                            .setNegativeButton("Cancel", null)
+                            .setPositiveButton("OK", null)
                             .show()
-                        // Retain normal text
                     }
                 }
             } else {
-                withContext(Dispatchers.Main) {
-                    val msgNoConn = "Failed to connect to OsmAnd."
-                    appendLog(msgNoConn)
-                    android.app.AlertDialog.Builder(this@MainActivity)
-                        .setTitle("Action Required")
-                        .setMessage("Please install OsmAnd if it is not installed, and enable the Cellular Surround plugin in OsmAnd's plugin menu first.")
-                        .setPositiveButton("Open OsmAnd") { _, _ ->
-                            val launchIntent = packageManager.getLaunchIntentForPackage("net.osmand.plus")
-                                ?: packageManager.getLaunchIntentForPackage("net.osmand")
-                            if (launchIntent != null) {
-                                launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
-                                startActivity(launchIntent)
-                            } else {
-                                try {
-                                    val playStoreIntent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse("market://details?id=net.osmand.plus"))
-                                    playStoreIntent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
-                                    startActivity(playStoreIntent)
-                                } catch (e: Exception) {
-                                    val webIntent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse("https://play.google.com/store/apps/details?id=net.osmand.plus"))
-                                    startActivity(webIntent)
-                                }
-                            }
-                        }
-                        .setNegativeButton("Cancel", null)
-                        .show()
-                }
+                val msgNoOsmAnd = "Failed to connect to OsmAnd. Is the app installed?"
+                appendLog(msgNoOsmAnd)
+                if (binding.cbVerbose.isChecked) { Toast.makeText(this@MainActivity, msgNoOsmAnd, Toast.LENGTH_LONG).show() }
             }
 
             binding.btnScan.isEnabled = true
         }
     }
+
 
     override fun onDestroy() {
         super.onDestroy()
