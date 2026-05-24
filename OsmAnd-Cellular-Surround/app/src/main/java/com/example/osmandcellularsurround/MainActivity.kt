@@ -334,21 +334,21 @@ class MainActivity : AppCompatActivity() {
                             val shareIntent = Intent(Intent.ACTION_SEND)
                             shareIntent.type = "text/plain"
 
-                            val uniqueFeatures = mutableSetOf<String>()
+                            val allFeatures = mutableListOf<String>()
 
                             // Include main tower if exists
                             if (currentMainTower != null) {
                                 val t = currentMainTower!!
                                 val desc = "${t.mcc}-${t.mnc}-${t.lac}-${t.cid}"
-                                uniqueFeatures.add("{\"type\":\"Feature\",\"geometry\":{\"type\":\"Point\",\"coordinates\":[${t.lon},${t.lat}]},\"properties\":{\"desc\":\"${desc}\",\"img\":\"\"}}")
+                                allFeatures.add("{\"type\":\"Feature\",\"geometry\":{\"type\":\"Point\",\"coordinates\":[${t.lon},${t.lat}]},\"properties\":{\"desc\":\"${desc}\",\"img\":\"\"}}")
                             }
 
                             // Add surrounding towers
-                            currentTowersList!!.forEach { tower ->
-                                uniqueFeatures.add("{\"type\":\"Feature\",\"geometry\":{\"type\":\"Point\",\"coordinates\":[${tower.lon},${tower.lat}]},\"properties\":{\"desc\":\"${tower.desc ?: ""}\",\"img\":\"\"}}")
-                            }
+                            allFeatures.addAll(currentTowersList!!.map { tower ->
+                                "{\"type\":\"Feature\",\"geometry\":{\"type\":\"Point\",\"coordinates\":[${tower.lon},${tower.lat}]},\"properties\":{\"desc\":\"${tower.desc ?: ""}\",\"img\":\"\"}}"
+                            })
 
-                            val features = uniqueFeatures.joinToString(",")
+                            val features = allFeatures.joinToString(",")
 
                             val geoJson = "{\"type\":\"FeatureCollection\",\"features\":[${features}]}"
 
