@@ -36,6 +36,12 @@ import kotlin.coroutines.resume
 class MainActivity : AppCompatActivity() {
 
 
+    // Global state variables for sharing and link generation
+    private var currentLocationLat: Double? = null
+    private var currentLocationLon: Double? = null
+    private var currentBoundingBox: DoubleArray? = null
+    private var currentTowersList: List<com.example.osmandcellularsurround.db.CellTowerResult>? = null
+    private var currentMainTower: com.example.osmandcellularsurround.db.CellTower? = null
 
     private lateinit var binding: ActivityMainBinding
     private lateinit var sharedPrefs: SharedPreferences
@@ -297,6 +303,63 @@ class MainActivity : AppCompatActivity() {
                     appendLog("Failed to connect to OsmAnd for clearing.")
                 }
             }
+        }
+
+        binding.btnShare.setOnClickListener {
+            val popup = android.widget.PopupMenu(this@MainActivity, binding.btnShare)
+            popup.menu.add("Current Location")
+            popup.menu.add("Current Bounding Box")
+            popup.menu.add("Current Towers")
+
+            popup.setOnMenuItemClickListener { item ->
+                when (item.title) {
+                    "Current Location" -> {
+                        if (currentLocationLat != null && currentLocationLon != null) {
+                            val shareIntent = Intent(Intent.ACTION_SEND)
+                            shareIntent.type = "text/plain"
+                            shareIntent.putExtra(Intent.EXTRA_TEXT, "geo:${currentLocationLat},${currentLocationLon}")
+                            startActivity(Intent.createChooser(shareIntent, "Share Location"))
+                        } else {
+                            Toast.makeText(this@MainActivity, "Location not calculated yet. Please SCAN first.", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                    "Current Bounding Box" -> {
+                        if (currentBoundingBox != null) {
+                            val bbox = currentBoundingBox!!
+                            val shareIntent = Intent(Intent.ACTION_SEND)
+                            shareIntent.type = "text/plain"
+                            shareIntent.putExtra(Intent.EXTRA_TEXT, "https://www.openstreetmap.org/?bbox=${bbox[2]},${bbox[0]},${bbox[3]},${bbox[1]}")
+                            startActivity(Intent.createChooser(shareIntent, "Share Bounding Box"))
+                        } else {
+                            Toast.makeText(this@MainActivity, "Bounding Box not calculated yet. Please SCAN first.", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                    "Current Towers" -> {
+                        val towers = currentTowersList
+                        if (towers != null && towers.isNotEmpty()) {
+                            val geoJsonBuilder = StringBuilder()
+                            geoJsonBuilder.append("{\"type\": \"FeatureCollection\", \"features\": [")
+
+                            for ((index, tower) in towers.withIndex()) {
+                                geoJsonBuilder.append("{\"type\": \"Feature\", \"geometry\": {\"type\": \"Point\", \"coordinates\": [${tower.lon}, ${tower.lat}]}, \"properties\": {\"desc\": \"${tower.desc}\"}}")
+                                if (index < towers.size - 1) {
+                                    geoJsonBuilder.append(", ")
+                                }
+                            }
+                            geoJsonBuilder.append("]}")
+
+                            val shareIntent = Intent(Intent.ACTION_SEND)
+                            shareIntent.type = "text/plain"
+                            shareIntent.putExtra(Intent.EXTRA_TEXT, geoJsonBuilder.toString())
+                            startActivity(Intent.createChooser(shareIntent, "Share Towers GeoJSON"))
+                        } else {
+                            Toast.makeText(this@MainActivity, "No towers found in the last scan.", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                }
+                true
+            }
+            popup.show()
         }
 
         binding.btnCopyLog.setOnClickListener {
@@ -999,6 +1062,9 @@ class MainActivity : AppCompatActivity() {
                 }
 
             }
+            currentTowersList = surroundingTowers
+            currentMainTower = effectiveMainTower
+            currentBoundingBox = if (currentMinLat != null && currentMaxLat != null && currentMinLon != null && currentMaxLon != null) doubleArrayOf(currentMinLat!!, currentMaxLat!!, currentMinLon!!, currentMaxLon!!) else null
 
             val radiusKm = actualRadiusKm // Use final actual radius for zoom calculations downstream
 
@@ -1048,6 +1114,8 @@ class MainActivity : AppCompatActivity() {
                     mapCenterLon = sumLon / surroundingTowers.size
                     appendLog("Map center defaulting to average of results: ($mapCenterLat, $mapCenterLon)")
                 }
+                currentLocationLat = mapCenterLat
+                currentLocationLon = mapCenterLon
 
                 withContext(Dispatchers.Main) {
                     val showSuccess = osmandHelper.showSurroundings(gpxUri, mapCenterLat, mapCenterLon, zoomLevel) { logMsg ->
