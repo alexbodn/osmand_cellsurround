@@ -310,6 +310,7 @@ class MainActivity : AppCompatActivity() {
             popup.menu.add("Current Location")
             popup.menu.add("Current Bounding Box")
             popup.menu.add("Current Towers")
+            popup.menu.add("Donate Data")
 
             popup.setOnMenuItemClickListener { item ->
                 when (item.title) {
@@ -356,6 +357,47 @@ class MainActivity : AppCompatActivity() {
                             Toast.makeText(this@MainActivity, "No towers found in the last scan.", Toast.LENGTH_SHORT).show()
                         }
                     }
+                    "Donate Data" -> {
+                        val apiKey = sharedPrefs.getString(KEY_API_KEY, "") ?: ""
+                        if (apiKey.isEmpty()) {
+                            Toast.makeText(this@MainActivity, "Please save an API key first.", Toast.LENGTH_SHORT).show()
+                        } else if (!hasPermissions()) {
+                            Toast.makeText(this@MainActivity, "Location and Phone permissions required to donate data.", Toast.LENGTH_SHORT).show()
+                        } else {
+                            val cellInfo = TelephonyHelper.getCurrentCellInfo(this@MainActivity)
+                            if (cellInfo == null) {
+                                Toast.makeText(this@MainActivity, "Cannot read live cell info.", Toast.LENGTH_SHORT).show()
+                            } else {
+                                try {
+                                    val lastKnown = locationManager?.getLastKnownLocation(LocationManager.GPS_PROVIDER)
+                                    if (lastKnown != null && lastKnown.hasAccuracy() && lastKnown.accuracy < 20f &&
+                                        (System.currentTimeMillis() - lastKnown.time < 30000)) {
+                                        donateLiveMeasurement(apiKey, cellInfo, lastKnown)
+                                    } else {
+                                        Toast.makeText(this@MainActivity, "Waiting for reliable GPS (<20m)...", Toast.LENGTH_SHORT).show()
+
+                                        val listener = object : LocationListener {
+                                            override fun onLocationChanged(location: Location) {
+                                                if (location.hasAccuracy() && location.accuracy < 20f) {
+                                                    locationManager?.removeUpdates(this)
+                                                    donateLiveMeasurement(apiKey, cellInfo, location)
+                                                }
+                                            }
+                                            override fun onStatusChanged(provider: String?, status: Int, extras: Bundle?) {}
+                                            override fun onProviderEnabled(provider: String) {}
+                                            override fun onProviderDisabled(provider: String) {
+                                                Toast.makeText(this@MainActivity, "GPS provider disabled", Toast.LENGTH_SHORT).show()
+                                                locationManager?.removeUpdates(this)
+                                            }
+                                        }
+                                        locationManager?.requestLocationUpdates(LocationManager.GPS_PROVIDER, 1000L, 0f, listener)
+                                    }
+                                } catch (e: SecurityException) {
+                                    Toast.makeText(this@MainActivity, "Location permissions denied.", Toast.LENGTH_SHORT).show()
+                                }
+                            }
+                        }
+                    }
                 }
                 true
             }
@@ -380,65 +422,6 @@ class MainActivity : AppCompatActivity() {
             Toast.makeText(this, "SQL Result copied to clipboard", Toast.LENGTH_SHORT).show()
         }
 
-        binding.btnDonate.setOnClickListener {
-            val apiKey = sharedPrefs.getString(KEY_API_KEY, "") ?: ""
-            if (apiKey.isEmpty()) {
-                Toast.makeText(this, "Please save an API key first.", Toast.LENGTH_SHORT).show()
-                return@setOnClickListener
-            }
-
-            if (!hasPermissions()) {
-                Toast.makeText(this, "Location and Phone permissions required to donate data.", Toast.LENGTH_SHORT).show()
-                return@setOnClickListener
-            }
-
-            val cellInfo = TelephonyHelper.getCurrentCellInfo(this)
-            if (cellInfo == null) {
-                Toast.makeText(this, "Cannot read live cell info.", Toast.LENGTH_SHORT).show()
-                return@setOnClickListener
-            }
-
-            try {
-                // Fetch location on-demand
-                val lastKnown = locationManager?.getLastKnownLocation(LocationManager.GPS_PROVIDER)
-                if (lastKnown != null && lastKnown.hasAccuracy() && lastKnown.accuracy < 20f &&
-                    (System.currentTimeMillis() - lastKnown.time < 30000)) {
-                    donateLiveMeasurement(apiKey, cellInfo, lastKnown)
-                } else {
-                    Toast.makeText(this, "Waiting for reliable GPS (<20m)...", Toast.LENGTH_SHORT).show()
-                    binding.btnDonate.isEnabled = false
-
-                    val listener = object : LocationListener {
-                        override fun onLocationChanged(location: Location) {
-                            if (location.hasAccuracy() && location.accuracy < 20f) {
-                                locationManager?.removeUpdates(this)
-                                donateLiveMeasurement(apiKey, cellInfo, location)
-                                binding.btnDonate.isEnabled = true
-                            }
-                        }
-                        override fun onStatusChanged(provider: String?, status: Int, extras: Bundle?) {}
-                        override fun onProviderEnabled(provider: String) {}
-                        override fun onProviderDisabled(provider: String) {
-                            Toast.makeText(this@MainActivity, "GPS provider disabled", Toast.LENGTH_SHORT).show()
-                            locationManager?.removeUpdates(this)
-                            binding.btnDonate.isEnabled = true
-                        }
-                    }
-                    locationManager?.requestLocationUpdates(LocationManager.GPS_PROVIDER, 1000L, 0f, listener)
-
-                    // Stop listening after 10 seconds if no accurate fix
-                    binding.btnDonate.postDelayed({
-                        locationManager?.removeUpdates(listener)
-                        if (!binding.btnDonate.isEnabled) {
-                            Toast.makeText(this@MainActivity, "Failed to get reliable GPS.", Toast.LENGTH_SHORT).show()
-                            binding.btnDonate.isEnabled = true
-                        }
-                    }, 10000)
-                }
-            } catch (e: SecurityException) {
-                Toast.makeText(this, "Location permissions denied.", Toast.LENGTH_SHORT).show()
-            }
-        }
 
         binding.btnRunSql.setOnClickListener {
             val sql = binding.etSql.text.toString().trim()
