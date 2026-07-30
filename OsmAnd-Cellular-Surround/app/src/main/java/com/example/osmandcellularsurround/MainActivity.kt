@@ -391,6 +391,15 @@ class MainActivity : AppCompatActivity() {
                                             }
                                         }
                                         locationManager?.requestLocationUpdates(LocationManager.GPS_PROVIDER, 1000L, 0f, listener)
+
+                                        // Stop listening after 10 seconds if no accurate fix
+                                        binding.btnShare.postDelayed({
+                                            locationManager?.removeUpdates(listener)
+                                            // Note: We can't easily check if the block already fired without a flag,
+                                            // but simply removing the listener prevents battery drain.
+                                            // (Optional: add a timeout toast here).
+                                            // Toast.makeText(this@MainActivity, "GPS timeout reached.", Toast.LENGTH_SHORT).show()
+                                        }, 10000)
                                     }
                                 } catch (e: SecurityException) {
                                     Toast.makeText(this@MainActivity, "Location permissions denied.", Toast.LENGTH_SHORT).show()

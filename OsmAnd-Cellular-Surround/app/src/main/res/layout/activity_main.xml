@@ -468,36 +468,30 @@
         android:orientation="horizontal"
         app:layout_constraintBottom_toBottomOf="parent">
 
-        <com.google.android.material.button.MaterialButton
+        <Button
             android:id="@+id/btnScan"
             android:layout_width="0dp"
             android:layout_weight="1"
             android:layout_height="wrap_content"
-            style="@style/Widget.MaterialComponents.Button.Icon"
-            app:icon="@drawable/ic_map"
-            app:iconGravity="textStart"
+            android:drawableStart="@drawable/ic_map"
             android:text="SHOW" />
 
-        <com.google.android.material.button.MaterialButton
+        <Button
             android:id="@+id/btnClear"
             android:layout_width="0dp"
             android:layout_weight="1"
             android:layout_height="wrap_content"
             android:layout_marginStart="8dp"
-            style="@style/Widget.MaterialComponents.Button.Icon"
-            app:icon="@drawable/ic_map"
-            app:iconGravity="textStart"
+            android:drawableStart="@drawable/ic_map"
             android:text="CLEAR" />
 
-        <com.google.android.material.button.MaterialButton
+        <Button
             android:id="@+id/btnShare"
             android:layout_width="0dp"
             android:layout_weight="1"
             android:layout_height="wrap_content"
             android:layout_marginStart="8dp"
-            style="@style/Widget.MaterialComponents.Button.Icon"
-            app:icon="@drawable/ic_table"
-            app:iconGravity="textStart"
+            android:drawableStart="@drawable/ic_table"
             android:text="SHARE" />
     </LinearLayout>
 
