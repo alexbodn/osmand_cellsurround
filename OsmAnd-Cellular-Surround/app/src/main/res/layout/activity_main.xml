@@ -8,23 +8,12 @@
     android:padding="16dp"
     tools:context=".MainActivity">
 
-    <TextView
-        android:id="@+id/tvTitle"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="OsmAnd Cellular Surround"
-        android:textSize="24sp"
-        android:textStyle="bold"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent" />
-
     <com.google.android.material.tabs.TabLayout
         android:id="@+id/tabLayout"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="16dp"
-        app:layout_constraintTop_toBottomOf="@id/tvTitle">
+        app:layout_constraintTop_toTopOf="parent">
 
         <com.google.android.material.tabs.TabItem
             android:layout_width="wrap_content"
@@ -260,20 +249,27 @@
                 android:text="Verbose mode"
                 android:layout_marginBottom="8dp" />
 
-            <CheckBox
-                android:id="@+id/cbManualLocation"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Use manual location (GNSS)"
-                android:layout_marginBottom="8dp" />
-
-            <EditText
-                android:id="@+id/etManualLocation"
+            <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:hint="e.g. 40.7128, -74.0060"
-                android:inputType="text"
-                android:layout_marginBottom="8dp" />
+                android:orientation="horizontal"
+                android:layout_marginBottom="8dp">
+
+                <CheckBox
+                    android:id="@+id/cbManualLocation"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Use manual location" />
+
+                <EditText
+                    android:id="@+id/etManualLocation"
+                    android:layout_width="0dp"
+                    android:layout_weight="1"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="8dp"
+                    android:hint="e.g. 40.7128, -74.0060"
+                    android:inputType="text" />
+            </LinearLayout>
 
             <TextView
                 android:id="@+id/tvCellInfoLabel"
@@ -473,19 +469,12 @@
         app:layout_constraintBottom_toBottomOf="parent">
 
         <Button
-            android:id="@+id/btnDonate"
-            android:layout_width="0dp"
-            android:layout_weight="1"
-            android:layout_height="wrap_content"
-            android:text="DONATE DATA" />
-
-        <Button
             android:id="@+id/btnScan"
             android:layout_width="0dp"
             android:layout_weight="1"
             android:layout_height="wrap_content"
-            android:layout_marginStart="8dp"
-            android:text="SHOW ON MAP" />
+            android:drawableStart="@drawable/ic_map"
+            android:text="SHOW" />
 
         <Button
             android:id="@+id/btnClear"
@@ -493,7 +482,17 @@
             android:layout_weight="1"
             android:layout_height="wrap_content"
             android:layout_marginStart="8dp"
+            android:drawableStart="@drawable/ic_map"
             android:text="CLEAR" />
+
+        <Button
+            android:id="@+id/btnShare"
+            android:layout_width="0dp"
+            android:layout_weight="1"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:drawableStart="@drawable/ic_table"
+            android:text="SHARE" />
     </LinearLayout>
 
 </androidx.constraintlayout.widget.ConstraintLayout>

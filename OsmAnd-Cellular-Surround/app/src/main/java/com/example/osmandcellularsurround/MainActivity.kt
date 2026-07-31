@@ -36,6 +36,12 @@ import kotlin.coroutines.resume
 class MainActivity : AppCompatActivity() {
 
 
+    // Global state variables for sharing and link generation
+    private var currentLocationLat: Double? = null
+    private var currentLocationLon: Double? = null
+    private var currentBoundingBox: DoubleArray? = null
+    private var currentTowersList: List<com.example.osmandcellularsurround.db.CellTowerResult>? = null
+    private var currentMainTower: com.example.osmandcellularsurround.db.CellTower? = null
 
     private lateinit var binding: ActivityMainBinding
     private lateinit var sharedPrefs: SharedPreferences
@@ -299,6 +305,114 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
+        binding.btnShare.setOnClickListener {
+            val popup = android.widget.PopupMenu(this@MainActivity, binding.btnShare)
+            popup.menu.add("Current Location")
+            popup.menu.add("Current Bounding Box")
+            popup.menu.add("Current Towers")
+            popup.menu.add("Donate Data")
+
+            popup.setOnMenuItemClickListener { item ->
+                when (item.title) {
+                    "Current Location" -> {
+                        if (currentLocationLat != null && currentLocationLon != null) {
+                            val shareIntent = Intent(Intent.ACTION_SEND)
+                            shareIntent.type = "text/plain"
+                            shareIntent.putExtra(Intent.EXTRA_TEXT, "geo:${currentLocationLat},${currentLocationLon}")
+                            startActivity(Intent.createChooser(shareIntent, "Share Location"))
+                        } else {
+                            Toast.makeText(this@MainActivity, "Location not calculated yet. Please SCAN first.", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                    "Current Bounding Box" -> {
+                        if (currentBoundingBox != null) {
+                            val bbox = currentBoundingBox!!
+                            val shareIntent = Intent(Intent.ACTION_SEND)
+                            shareIntent.type = "text/plain"
+                            shareIntent.putExtra(Intent.EXTRA_TEXT, "https://www.openstreetmap.org/?bbox=${bbox[2]},${bbox[0]},${bbox[3]},${bbox[1]}")
+                            startActivity(Intent.createChooser(shareIntent, "Share Bounding Box"))
+                        } else {
+                            Toast.makeText(this@MainActivity, "Bounding Box not calculated yet. Please SCAN first.", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                    "Current Towers" -> {
+                        val towers = currentTowersList
+                        if (towers != null && towers.isNotEmpty()) {
+                            val geoJsonBuilder = StringBuilder()
+                            geoJsonBuilder.append("{\"type\": \"FeatureCollection\", \"features\": [")
+
+                            for ((index, tower) in towers.withIndex()) {
+                                geoJsonBuilder.append("{\"type\": \"Feature\", \"geometry\": {\"type\": \"Point\", \"coordinates\": [${tower.lon}, ${tower.lat}]}, \"properties\": {\"desc\": \"${tower.desc}\"}}")
+                                if (index < towers.size - 1) {
+                                    geoJsonBuilder.append(", ")
+                                }
+                            }
+                            geoJsonBuilder.append("]}")
+
+                            val shareIntent = Intent(Intent.ACTION_SEND)
+                            shareIntent.type = "text/plain"
+                            shareIntent.putExtra(Intent.EXTRA_TEXT, geoJsonBuilder.toString())
+                            startActivity(Intent.createChooser(shareIntent, "Share Towers GeoJSON"))
+                        } else {
+                            Toast.makeText(this@MainActivity, "No towers found in the last scan.", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                    "Donate Data" -> {
+                        val apiKey = sharedPrefs.getString(KEY_API_KEY, "") ?: ""
+                        if (apiKey.isEmpty()) {
+                            Toast.makeText(this@MainActivity, "Please save an API key first.", Toast.LENGTH_SHORT).show()
+                        } else if (!hasPermissions()) {
+                            Toast.makeText(this@MainActivity, "Location and Phone permissions required to donate data.", Toast.LENGTH_SHORT).show()
+                        } else {
+                            val cellInfo = TelephonyHelper.getCurrentCellInfo(this@MainActivity)
+                            if (cellInfo == null) {
+                                Toast.makeText(this@MainActivity, "Cannot read live cell info.", Toast.LENGTH_SHORT).show()
+                            } else {
+                                try {
+                                    val lastKnown = locationManager?.getLastKnownLocation(LocationManager.GPS_PROVIDER)
+                                    if (lastKnown != null && lastKnown.hasAccuracy() && lastKnown.accuracy < 20f &&
+                                        (System.currentTimeMillis() - lastKnown.time < 30000)) {
+                                        donateLiveMeasurement(apiKey, cellInfo, lastKnown)
+                                    } else {
+                                        Toast.makeText(this@MainActivity, "Waiting for reliable GPS (<20m)...", Toast.LENGTH_SHORT).show()
+
+                                        val listener = object : LocationListener {
+                                            override fun onLocationChanged(location: Location) {
+                                                if (location.hasAccuracy() && location.accuracy < 20f) {
+                                                    locationManager?.removeUpdates(this)
+                                                    donateLiveMeasurement(apiKey, cellInfo, location)
+                                                }
+                                            }
+                                            override fun onStatusChanged(provider: String?, status: Int, extras: Bundle?) {}
+                                            override fun onProviderEnabled(provider: String) {}
+                                            override fun onProviderDisabled(provider: String) {
+                                                Toast.makeText(this@MainActivity, "GPS provider disabled", Toast.LENGTH_SHORT).show()
+                                                locationManager?.removeUpdates(this)
+                                            }
+                                        }
+                                        locationManager?.requestLocationUpdates(LocationManager.GPS_PROVIDER, 1000L, 0f, listener)
+
+                                        // Stop listening after 10 seconds if no accurate fix
+                                        binding.btnShare.postDelayed({
+                                            locationManager?.removeUpdates(listener)
+                                            // Note: We can't easily check if the block already fired without a flag,
+                                            // but simply removing the listener prevents battery drain.
+                                            // (Optional: add a timeout toast here).
+                                            // Toast.makeText(this@MainActivity, "GPS timeout reached.", Toast.LENGTH_SHORT).show()
+                                        }, 10000)
+                                    }
+                                } catch (e: SecurityException) {
+                                    Toast.makeText(this@MainActivity, "Location permissions denied.", Toast.LENGTH_SHORT).show()
+                                }
+                            }
+                        }
+                    }
+                }
+                true
+            }
+            popup.show()
+        }
+
         binding.btnCopyLog.setOnClickListener {
             val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
             val isSqlTab = binding.tabLayout.selectedTabPosition == 1
@@ -317,65 +431,6 @@ class MainActivity : AppCompatActivity() {
             Toast.makeText(this, "SQL Result copied to clipboard", Toast.LENGTH_SHORT).show()
         }
 
-        binding.btnDonate.setOnClickListener {
-            val apiKey = sharedPrefs.getString(KEY_API_KEY, "") ?: ""
-            if (apiKey.isEmpty()) {
-                Toast.makeText(this, "Please save an API key first.", Toast.LENGTH_SHORT).show()
-                return@setOnClickListener
-            }
-
-            if (!hasPermissions()) {
-                Toast.makeText(this, "Location and Phone permissions required to donate data.", Toast.LENGTH_SHORT).show()
-                return@setOnClickListener
-            }
-
-            val cellInfo = TelephonyHelper.getCurrentCellInfo(this)
-            if (cellInfo == null) {
-                Toast.makeText(this, "Cannot read live cell info.", Toast.LENGTH_SHORT).show()
-                return@setOnClickListener
-            }
-
-            try {
-                // Fetch location on-demand
-                val lastKnown = locationManager?.getLastKnownLocation(LocationManager.GPS_PROVIDER)
-                if (lastKnown != null && lastKnown.hasAccuracy() && lastKnown.accuracy < 20f &&
-                    (System.currentTimeMillis() - lastKnown.time < 30000)) {
-                    donateLiveMeasurement(apiKey, cellInfo, lastKnown)
-                } else {
-                    Toast.makeText(this, "Waiting for reliable GPS (<20m)...", Toast.LENGTH_SHORT).show()
-                    binding.btnDonate.isEnabled = false
-
-                    val listener = object : LocationListener {
-                        override fun onLocationChanged(location: Location) {
-                            if (location.hasAccuracy() && location.accuracy < 20f) {
-                                locationManager?.removeUpdates(this)
-                                donateLiveMeasurement(apiKey, cellInfo, location)
-                                binding.btnDonate.isEnabled = true
-                            }
-                        }
-                        override fun onStatusChanged(provider: String?, status: Int, extras: Bundle?) {}
-                        override fun onProviderEnabled(provider: String) {}
-                        override fun onProviderDisabled(provider: String) {
-                            Toast.makeText(this@MainActivity, "GPS provider disabled", Toast.LENGTH_SHORT).show()
-                            locationManager?.removeUpdates(this)
-                            binding.btnDonate.isEnabled = true
-                        }
-                    }
-                    locationManager?.requestLocationUpdates(LocationManager.GPS_PROVIDER, 1000L, 0f, listener)
-
-                    // Stop listening after 10 seconds if no accurate fix
-                    binding.btnDonate.postDelayed({
-                        locationManager?.removeUpdates(listener)
-                        if (!binding.btnDonate.isEnabled) {
-                            Toast.makeText(this@MainActivity, "Failed to get reliable GPS.", Toast.LENGTH_SHORT).show()
-                            binding.btnDonate.isEnabled = true
-                        }
-                    }, 10000)
-                }
-            } catch (e: SecurityException) {
-                Toast.makeText(this, "Location permissions denied.", Toast.LENGTH_SHORT).show()
-            }
-        }
 
         binding.btnRunSql.setOnClickListener {
             val sql = binding.etSql.text.toString().trim()
@@ -999,6 +1054,9 @@ class MainActivity : AppCompatActivity() {
                 }
 
             }
+            currentTowersList = surroundingTowers
+            currentMainTower = effectiveMainTower
+            currentBoundingBox = if (currentMinLat != null && currentMaxLat != null && currentMinLon != null && currentMaxLon != null) doubleArrayOf(currentMinLat!!, currentMaxLat!!, currentMinLon!!, currentMaxLon!!) else null
 
             val radiusKm = actualRadiusKm // Use final actual radius for zoom calculations downstream
 
@@ -1048,6 +1106,8 @@ class MainActivity : AppCompatActivity() {
                     mapCenterLon = sumLon / surroundingTowers.size
                     appendLog("Map center defaulting to average of results: ($mapCenterLat, $mapCenterLon)")
                 }
+                currentLocationLat = mapCenterLat
+                currentLocationLon = mapCenterLon
 
                 withContext(Dispatchers.Main) {
                     val showSuccess = osmandHelper.showSurroundings(gpxUri, mapCenterLat, mapCenterLon, zoomLevel) { logMsg ->

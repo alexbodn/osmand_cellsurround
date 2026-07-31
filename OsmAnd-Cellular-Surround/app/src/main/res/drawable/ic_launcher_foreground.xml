@@ -5,94 +5,80 @@
     android:viewportWidth="108"
     android:viewportHeight="108">
 
-    <!-- Safe Zone is 66dp diameter centered at 54,54. (R = 33).
-         Safe X bounds: 21 to 87
-         Safe Y bounds: 21 to 87
-         We will place 5 cell towers asymmetrically within this zone. -->
+    <!-- Safe Zone is 66dp diameter centered at 54,54. (R = 33). -->
 
     <!-- =======================
-         CELL TOWER 1 (Center)
-         Position: X=50, Y=45 (Base of tower)
-         Scale: ~1.0
+         CELL TOWER 1 (Center) - Monopole (Single pole, multiple arrays)
+         Position: X=54, Y=54
+         Scale: 1.2
          ======================= -->
-    <group android:translateX="50" android:translateY="45">
+    <group android:translateX="54" android:translateY="54" android:scaleX="1.2" android:scaleY="1.2">
         <!-- Signal Waves -->
-        <path android:strokeColor="#FF5252" android:strokeWidth="1.5" android:strokeLineCap="round" android:fillColor="#00000000" android:pathData="M -8,-25 A 8,8 0 0,0 -12,-18" />
-        <path android:strokeColor="#FF5252" android:strokeWidth="1.5" android:strokeLineCap="round" android:fillColor="#00000000" android:pathData="M -12,-29 A 12,12 0 0,0 -18,-18" />
-        <path android:strokeColor="#FF5252" android:strokeWidth="1.5" android:strokeLineCap="round" android:fillColor="#00000000" android:pathData="M 8,-25 A 8,8 0 0,1 12,-18" />
-        <path android:strokeColor="#FF5252" android:strokeWidth="1.5" android:strokeLineCap="round" android:fillColor="#00000000" android:pathData="M 12,-29 A 12,12 0 0,1 18,-18" />
-        <path android:fillColor="#FF5252" android:pathData="M -2,-20 a 2,2 0 1,0 4,0 a 2,2 0 1,0 -4,0" />
-        <!-- Tower Structure -->
-        <path android:fillColor="#424242" android:pathData="M -6,0 L -2,-20 L 2,-20 L 6,0 Z" />
-        <path android:strokeColor="#616161" android:strokeWidth="1" android:pathData="M -5,-5 L 5,-5 M -4,-10 L 4,-10 M -3,-15 L 3,-15" />
-        <!-- Cross bracing -->
-        <path android:strokeColor="#616161" android:strokeWidth="0.5" android:pathData="M -6,0 L 4,-10 M 6,0 L -4,-10 M -4,-10 L 3,-15 M 4,-10 L -3,-15" />
+        <path android:strokeColor="#FFFFFF" android:strokeWidth="1.5" android:strokeLineCap="round" android:fillColor="#00000000" android:pathData="M -8,-25 A 8,8 0 0,0 -12,-18" />
+        <path android:strokeColor="#FFFFFF" android:strokeWidth="1.5" android:strokeLineCap="round" android:fillColor="#00000000" android:pathData="M -12,-29 A 12,12 0 0,0 -18,-18" />
+        <path android:strokeColor="#FFFFFF" android:strokeWidth="1.5" android:strokeLineCap="round" android:fillColor="#00000000" android:pathData="M 8,-25 A 8,8 0 0,1 12,-18" />
+        <path android:strokeColor="#FFFFFF" android:strokeWidth="1.5" android:strokeLineCap="round" android:fillColor="#00000000" android:pathData="M 12,-29 A 12,12 0 0,1 18,-18" />
+        <path android:fillColor="#FFFFFF" android:pathData="M -2,-20 a 2,2 0 1,0 4,0 a 2,2 0 1,0 -4,0" />
+
+        <!-- Tower Structure: Monopole -->
+        <path android:fillColor="#B0BEC5" android:pathData="M -2,12 L -1.5,-20 L 1.5,-20 L 2,12 Z" />
+
+        <!-- Antennas arrays on monopole -->
+        <path android:fillColor="#78909C" android:pathData="M -5,-15 L 5,-15 L 5,-12 L -5,-12 Z" />
+        <path android:fillColor="#78909C" android:pathData="M -4,-8 L 4,-8 L 4,-5 L -4,-5 Z" />
     </group>
 
     <!-- =======================
-         CELL TOWER 2 (Top Right)
-         Position: X=75, Y=30
+         CELL TOWER 2 (Top Right) - Lattice Tower (classic triangle shape)
+         Position: X=75, Y=38
          Scale: 0.8
          ======================= -->
-    <group android:translateX="75" android:translateY="30" android:scaleX="0.8" android:scaleY="0.8">
+    <group android:translateX="75" android:translateY="38" android:scaleX="0.8" android:scaleY="0.8">
         <path android:strokeColor="#448AFF" android:strokeWidth="1.5" android:strokeLineCap="round" android:fillColor="#00000000" android:pathData="M -8,-25 A 8,8 0 0,0 -12,-18" />
         <path android:strokeColor="#448AFF" android:strokeWidth="1.5" android:strokeLineCap="round" android:fillColor="#00000000" android:pathData="M 8,-25 A 8,8 0 0,1 12,-18" />
         <path android:fillColor="#448AFF" android:pathData="M -2,-20 a 2,2 0 1,0 4,0 a 2,2 0 1,0 -4,0" />
-        <!-- Tower Structure -->
-        <path android:fillColor="#424242" android:pathData="M -6,0 L -2,-20 L 2,-20 L 6,0 Z" />
-        <path android:strokeColor="#616161" android:strokeWidth="1" android:pathData="M -5,-5 L 5,-5 M -4,-10 L 4,-10 M -3,-15 L 3,-15" />
-        <path android:strokeColor="#616161" android:strokeWidth="0.5" android:pathData="M -6,0 L 4,-10 M 6,0 L -4,-10 M -4,-10 L 3,-15 M 4,-10 L -3,-15" />
+
+        <!-- Tower Structure: Lattice -->
+        <path android:fillColor="#B0BEC5" android:pathData="M -6,10 L -2,-20 L 2,-20 L 6,10 Z" />
+        <path android:strokeColor="#CFD8DC" android:strokeWidth="1" android:pathData="M -5,-5 L 5,-5 M -4,-10 L 4,-10 M -3,-15 L 3,-15" />
+        <path android:strokeColor="#CFD8DC" android:strokeWidth="0.5" android:pathData="M -6,10 L 5,-5 M 6,10 L -5,-5 M -5,-5 L 4,-10 M 5,-5 L -4,-10 M -4,-10 L 3,-15 M 4,-10 L -3,-15" />
     </group>
 
     <!-- =======================
-         CELL TOWER 3 (Bottom Right)
-         Position: X=65, Y=70
+         CELL TOWER 3 (Bottom Left) - Guyed Mast (Tall thin pole with wires)
+         Position: X=35, Y=70
          Scale: 0.9
          ======================= -->
-    <group android:translateX="65" android:translateY="70" android:scaleX="0.9" android:scaleY="0.9">
-        <path android:strokeColor="#FFC107" android:strokeWidth="1.5" android:strokeLineCap="round" android:fillColor="#00000000" android:pathData="M -8,-25 A 8,8 0 0,0 -12,-18" />
-        <path android:strokeColor="#FFC107" android:strokeWidth="1.5" android:strokeLineCap="round" android:fillColor="#00000000" android:pathData="M -12,-29 A 12,12 0 0,0 -18,-18" />
-        <path android:strokeColor="#FFC107" android:strokeWidth="1.5" android:strokeLineCap="round" android:fillColor="#00000000" android:pathData="M 8,-25 A 8,8 0 0,1 12,-18" />
-        <path android:strokeColor="#FFC107" android:strokeWidth="1.5" android:strokeLineCap="round" android:fillColor="#00000000" android:pathData="M 12,-29 A 12,12 0 0,1 18,-18" />
-        <path android:fillColor="#FFC107" android:pathData="M -2,-20 a 2,2 0 1,0 4,0 a 2,2 0 1,0 -4,0" />
-        <!-- Tower Structure -->
-        <path android:fillColor="#424242" android:pathData="M -6,0 L -2,-20 L 2,-20 L 6,0 Z" />
-        <path android:strokeColor="#616161" android:strokeWidth="1" android:pathData="M -5,-5 L 5,-5 M -4,-10 L 4,-10 M -3,-15 L 3,-15" />
-        <path android:strokeColor="#616161" android:strokeWidth="0.5" android:pathData="M -6,0 L 4,-10 M 6,0 L -4,-10 M -4,-10 L 3,-15 M 4,-10 L -3,-15" />
-    </group>
-
-    <!-- =======================
-         CELL TOWER 4 (Bottom Left)
-         Position: X=35, Y=65
-         Scale: 0.85
-         ======================= -->
-    <group android:translateX="35" android:translateY="65" android:scaleX="0.85" android:scaleY="0.85">
+    <group android:translateX="35" android:translateY="70" android:scaleX="0.9" android:scaleY="0.9">
         <path android:strokeColor="#4CAF50" android:strokeWidth="1.5" android:strokeLineCap="round" android:fillColor="#00000000" android:pathData="M -8,-25 A 8,8 0 0,0 -12,-18" />
         <path android:strokeColor="#4CAF50" android:strokeWidth="1.5" android:strokeLineCap="round" android:fillColor="#00000000" android:pathData="M 8,-25 A 8,8 0 0,1 12,-18" />
         <path android:fillColor="#4CAF50" android:pathData="M -2,-20 a 2,2 0 1,0 4,0 a 2,2 0 1,0 -4,0" />
-        <!-- Tower Structure -->
-        <path android:fillColor="#424242" android:pathData="M -6,0 L -2,-20 L 2,-20 L 6,0 Z" />
-        <path android:strokeColor="#616161" android:strokeWidth="1" android:pathData="M -5,-5 L 5,-5 M -4,-10 L 4,-10 M -3,-15 L 3,-15" />
-        <path android:strokeColor="#616161" android:strokeWidth="0.5" android:pathData="M -6,0 L 4,-10 M 6,0 L -4,-10 M -4,-10 L 3,-15 M 4,-10 L -3,-15" />
+
+        <!-- Tower Structure: Mast -->
+        <path android:fillColor="#B0BEC5" android:pathData="M -1,10 L -1,-20 L 1,-20 L 1,10 Z" />
+
+        <!-- Guy wires -->
+        <path android:strokeColor="#CFD8DC" android:strokeWidth="0.5" android:pathData="M -1,-10 L -10,10 M 1,-10 L 10,10" />
+        <path android:strokeColor="#CFD8DC" android:strokeWidth="0.5" android:pathData="M -1,0 L -6,10 M 1,0 L 6,10" />
     </group>
 
     <!-- =======================
-         CELL TOWER 5 (Middle Left)
-         Position: X=25, Y=35
-         Scale: 0.75
+         CELL TOWER 4 (Bottom Right) - Small rooftop/water tower style
+         Position: X=70, Y=72
+         Scale: 0.7
          ======================= -->
-    <group android:translateX="25" android:translateY="35" android:scaleX="0.75" android:scaleY="0.75">
-        <path android:strokeColor="#E040FB" android:strokeWidth="1.5" android:strokeLineCap="round" android:fillColor="#00000000" android:pathData="M -8,-25 A 8,8 0 0,0 -12,-18" />
-        <path android:strokeColor="#E040FB" android:strokeWidth="1.5" android:strokeLineCap="round" android:fillColor="#00000000" android:pathData="M -12,-29 A 12,12 0 0,0 -18,-18" />
-        <path android:strokeColor="#E040FB" android:strokeWidth="1.5" android:strokeLineCap="round" android:fillColor="#00000000" android:pathData="M 8,-25 A 8,8 0 0,1 12,-18" />
-        <path android:strokeColor="#E040FB" android:strokeWidth="1.5" android:strokeLineCap="round" android:fillColor="#00000000" android:pathData="M 12,-29 A 12,12 0 0,1 18,-18" />
-        <path android:fillColor="#E040FB" android:pathData="M -2,-20 a 2,2 0 1,0 4,0 a 2,2 0 1,0 -4,0" />
-        <!-- Tower Structure -->
-        <path android:fillColor="#424242" android:pathData="M -6,0 L -2,-20 L 2,-20 L 6,0 Z" />
-        <path android:strokeColor="#616161" android:strokeWidth="1" android:pathData="M -5,-5 L 5,-5 M -4,-10 L 4,-10 M -3,-15 L 3,-15" />
-        <path android:strokeColor="#616161" android:strokeWidth="0.5" android:pathData="M -6,0 L 4,-10 M 6,0 L -4,-10 M -4,-10 L 3,-15 M 4,-10 L -3,-15" />
+    <group android:translateX="70" android:translateY="72" android:scaleX="0.7" android:scaleY="0.7">
+        <path android:strokeColor="#FFC107" android:strokeWidth="1.5" android:strokeLineCap="round" android:fillColor="#00000000" android:pathData="M -8,-25 A 8,8 0 0,0 -12,-18" />
+        <path android:strokeColor="#FFC107" android:strokeWidth="1.5" android:strokeLineCap="round" android:fillColor="#00000000" android:pathData="M 8,-25 A 8,8 0 0,1 12,-18" />
+        <path android:fillColor="#FFC107" android:pathData="M -2,-20 a 2,2 0 1,0 4,0 a 2,2 0 1,0 -4,0" />
+
+        <!-- Base block -->
+        <path android:fillColor="#90A4AE" android:pathData="M -4,-5 L -4,10 L 4,10 L 4,-5 Z" />
+        <!-- Small mast -->
+        <path android:fillColor="#B0BEC5" android:pathData="M -1,-20 L -1,-5 L 1,-5 L 1,-20 Z" />
+        <path android:fillColor="#78909C" android:pathData="M -3,-18 L 3,-18 L 3,-14 L -3,-14 Z" />
     </group>
 
-    <!-- Optional: Subtle shadow at the base of the towers to ground them -->
-    <path android:fillColor="#33000000" android:pathData="M 50,46 A 8,2 0 0,0 50,44 A 8,2 0 0,0 50,46 Z M 75,31 A 6,1.5 0 0,0 75,29.5 A 6,1.5 0 0,0 75,31 Z M 65,71 A 7,1.8 0 0,0 65,69.2 A 7,1.8 0 0,0 65,71 Z M 35,66 A 6,1.5 0 0,0 35,64.5 A 6,1.5 0 0,0 35,66 Z M 25,36 A 5,1.2 0 0,0 25,34.8 A 5,1.2 0 0,0 25,36 Z" />
+    <!-- Base Shadows -->
+    <path android:fillColor="#33000000" android:pathData="M 54,69 A 6,2 0 0,0 54,67 A 6,2 0 0,0 54,69 Z M 75,48 A 4,1.5 0 0,0 75,46.5 A 4,1.5 0 0,0 75,48 Z M 35,81 A 8,2 0 0,0 35,79 A 8,2 0 0,0 35,81 Z M 70,81 A 5,1.5 0 0,0 70,79.5 A 5,1.5 0 0,0 70,81 Z" />
 </vector>
