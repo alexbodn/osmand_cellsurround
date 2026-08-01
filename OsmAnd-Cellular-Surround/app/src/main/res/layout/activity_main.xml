@@ -261,14 +261,20 @@
                     android:layout_height="wrap_content"
                     android:text="Use manual location" />
 
-                <EditText
-                    android:id="@+id/etManualLocation"
+                <com.google.android.material.textfield.TextInputLayout
                     android:layout_width="0dp"
                     android:layout_weight="1"
                     android:layout_height="wrap_content"
                     android:layout_marginStart="8dp"
-                    android:hint="e.g. 40.7128, -74.0060"
-                    android:inputType="text" />
+                    style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
+
+                    <com.google.android.material.textfield.TextInputEditText
+                        android:id="@+id/etManualLocation"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:hint="e.g. 40.7128, -74.0060"
+                        android:inputType="text" />
+                </com.google.android.material.textfield.TextInputLayout>
             </LinearLayout>
 
             <TextView
@@ -284,13 +290,19 @@
                 android:layout_height="wrap_content"
                 android:orientation="horizontal">
 
-                <EditText
-                    android:id="@+id/etCellInfo"
+                <com.google.android.material.textfield.TextInputLayout
                     android:layout_width="0dp"
                     android:layout_weight="1"
                     android:layout_height="wrap_content"
-                    android:hint="e.g. lte,310,410,12345,67890"
-                    android:inputType="text" />
+                    style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
+
+                    <com.google.android.material.textfield.TextInputEditText
+                        android:id="@+id/etCellInfo"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:hint="e.g. lte,310,410,12345,67890"
+                        android:inputType="text" />
+                </com.google.android.material.textfield.TextInputLayout>
 
                 <Button
                     android:id="@+id/btnReloadCellInfo"
@@ -312,17 +324,23 @@
                 android:layout_height="wrap_content"
                 android:orientation="horizontal">
 
-                <EditText
-                    android:id="@+id/etTowersSql"
+                <com.google.android.material.textfield.TextInputLayout
                     android:layout_width="0dp"
                     android:layout_weight="1"
                     android:layout_height="match_parent"
-                    android:minLines="3"
-                    android:scrollbars="vertical"
-                    android:gravity="top|start"
-                    android:inputType="textMultiLine"
-                    android:hint="SQL to select towers for map"
-                    android:textSize="12sp" />
+                    style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
+
+                    <com.google.android.material.textfield.TextInputEditText
+                        android:id="@+id/etTowersSql"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:minLines="3"
+                        android:scrollbars="vertical"
+                        android:gravity="top|start"
+                        android:inputType="textMultiLine"
+                        android:hint="SQL to select towers for map"
+                        android:textSize="12sp" />
+                </com.google.android.material.textfield.TextInputLayout>
 
                 <LinearLayout
                     android:layout_width="wrap_content"
@@ -369,17 +387,23 @@
                 android:layout_height="wrap_content"
                 android:orientation="horizontal">
 
-                <EditText
-                    android:id="@+id/etSql"
+                <com.google.android.material.textfield.TextInputLayout
                     android:layout_width="0dp"
                     android:layout_weight="1"
                     android:layout_height="200dp"
-                    android:gravity="top|start"
-                    android:inputType="textMultiLine"
-                    android:minLines="5"
-                    android:scrollbars="vertical"
-                    android:hint="SQL query (e.g., SELECT * FROM cell_towers LIMIT 10)"
-                    android:textSize="12sp" />
+                    style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
+
+                    <com.google.android.material.textfield.TextInputEditText
+                        android:id="@+id/etSql"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:gravity="top|start"
+                        android:inputType="textMultiLine"
+                        android:minLines="5"
+                        android:scrollbars="vertical"
+                        android:hint="SQL query (e.g., SELECT * FROM cell_towers LIMIT 10)"
+                        android:textSize="12sp" />
+                </com.google.android.material.textfield.TextInputLayout>
 
                 <LinearLayout
                     android:layout_width="wrap_content"
