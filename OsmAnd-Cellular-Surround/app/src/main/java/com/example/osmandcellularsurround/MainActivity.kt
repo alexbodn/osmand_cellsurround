@@ -176,6 +176,7 @@ class MainActivity : AppCompatActivity() {
         when (savedTheme) {
             "light" -> contentBinding.rbThemeLight.isChecked = true
             "dark" -> contentBinding.rbThemeDark.isChecked = true
+            "auto" -> contentBinding.rbThemeAuto.isChecked = true
             else -> contentBinding.rbThemeSystem.isChecked = true
         }
 
@@ -183,6 +184,7 @@ class MainActivity : AppCompatActivity() {
             val selectedTheme = when (checkedId) {
                 R.id.rbThemeLight -> "light"
                 R.id.rbThemeDark -> "dark"
+                R.id.rbThemeAuto -> "auto"
                 else -> "system"
             }
             sharedPrefs.edit().putString("app_theme", selectedTheme).apply()
@@ -1215,6 +1217,7 @@ class MainActivity : AppCompatActivity() {
         val mode = when (theme) {
             "light" -> AppCompatDelegate.MODE_NIGHT_NO
             "dark" -> AppCompatDelegate.MODE_NIGHT_YES
+            "auto" -> AppCompatDelegate.MODE_NIGHT_AUTO_TIME
             else -> AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM
         }
         AppCompatDelegate.setDefaultNightMode(mode)

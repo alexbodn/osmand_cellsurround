@@ -146,6 +146,11 @@
                     android:layout_height="wrap_content"
                     android:text="System" />
                 <RadioButton
+                    android:id="@+id/rbThemeAuto"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Auto" />
+                <RadioButton
                     android:id="@+id/rbThemeLight"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
@@ -174,10 +179,9 @@
 
                 <Spinner
                     android:id="@+id/spinnerRadius"
-                    android:layout_width="0dp"
-                    android:layout_weight="1"
+                    android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginStart="16dp"
+                    android:layout_marginStart="8dp"
                     android:layout_gravity="center_vertical" />
             </LinearLayout>
 
@@ -185,6 +189,7 @@
                 android:id="@+id/tvApiKeyLabel"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
                 android:textSize="12sp" />
 
             <LinearLayout
