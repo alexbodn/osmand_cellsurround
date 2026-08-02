@@ -8,18 +8,21 @@ import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import android.content.Intent
+import androidx.appcompat.app.ActionBarDrawerToggle
 import androidx.appcompat.app.AppCompatActivity
+import androidx.appcompat.app.AppCompatDelegate
 import android.view.View
 import android.text.method.LinkMovementMethod
 import android.location.Location
 import android.location.LocationListener
 import android.location.LocationManager
 import androidx.core.text.HtmlCompat
-import com.google.android.material.tabs.TabLayout
+import androidx.core.view.GravityCompat
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.coroutineScope
 import com.example.osmandcellularsurround.databinding.ActivityMainBinding
+import com.example.osmandcellularsurround.databinding.ContentMainBinding
 import com.example.osmandcellularsurround.db.AppDatabase
 import com.example.osmandcellularsurround.api.OpenCellidApi
 import com.example.osmandcellularsurround.api.OpenCellidDownloader
@@ -44,6 +47,7 @@ class MainActivity : AppCompatActivity() {
     private var currentMainTower: com.example.osmandcellularsurround.db.CellTower? = null
 
     private lateinit var binding: ActivityMainBinding
+    private lateinit var contentBinding: ContentMainBinding
     private lateinit var sharedPrefs: SharedPreferences
     private lateinit var osmandHelper: OsmAndHelper
     private lateinit var dataSyncManager: DataSyncManager
@@ -80,14 +84,16 @@ class MainActivity : AppCompatActivity() {
         OpenCellidDownloader.init(this)
         super.onCreate(savedInstanceState)
 
+        applySavedTheme()
         binding = ActivityMainBinding.inflate(layoutInflater)
+        contentBinding = ContentMainBinding.bind(binding.root)
         setContentView(binding.root)
 
         handleIntent(intent)
 
         // Setup API Key label with clickable link
-        binding.tvApiKeyLabel.text = HtmlCompat.fromHtml(getString(R.string.api_key_label), HtmlCompat.FROM_HTML_MODE_COMPACT)
-        binding.tvApiKeyLabel.movementMethod = LinkMovementMethod.getInstance()
+        contentBinding.tvApiKeyLabel.text = HtmlCompat.fromHtml(getString(R.string.api_key_label), HtmlCompat.FROM_HTML_MODE_COMPACT)
+        contentBinding.tvApiKeyLabel.movementMethod = LinkMovementMethod.getInstance()
 
 
         sharedPrefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -101,21 +107,21 @@ class MainActivity : AppCompatActivity() {
             android.R.layout.simple_spinner_item
         ).also { adapter ->
             adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
-            binding.spinnerRadius.adapter = adapter
+            contentBinding.spinnerRadius.adapter = adapter
         }
         // Setup Location tracking
         locationManager = getSystemService(Context.LOCATION_SERVICE) as LocationManager
 
         // Setup Links in Background Tab
-        binding.tvDocumentationLink.text = HtmlCompat.fromHtml("<a href=\"https://wiki.opencellid.org/wiki/API\">Read OpenCelliD Documentation</a>", HtmlCompat.FROM_HTML_MODE_COMPACT)
-        binding.tvDocumentationLink.movementMethod = LinkMovementMethod.getInstance()
+        contentBinding.tvDocumentationLink.text = HtmlCompat.fromHtml("<a href=\"https://wiki.opencellid.org/wiki/API\">Read OpenCelliD Documentation</a>", HtmlCompat.FROM_HTML_MODE_COMPACT)
+        contentBinding.tvDocumentationLink.movementMethod = LinkMovementMethod.getInstance()
 
-        binding.tvUserProfileLink.text = HtmlCompat.fromHtml("<a href=\"https://opencellid.org\">View your OpenCelliD Profile &amp; History</a>", HtmlCompat.FROM_HTML_MODE_COMPACT)
-        binding.tvUserProfileLink.movementMethod = LinkMovementMethod.getInstance()
+        contentBinding.tvUserProfileLink.text = HtmlCompat.fromHtml("<a href=\"https://opencellid.org\">View your OpenCelliD Profile &amp; History</a>", HtmlCompat.FROM_HTML_MODE_COMPACT)
+        contentBinding.tvUserProfileLink.movementMethod = LinkMovementMethod.getInstance()
 
 
 
-        binding.btnOsmAndPlugins.setOnClickListener {
+        contentBinding.btnOsmAndPlugins.setOnClickListener {
             val launchIntent = packageManager.getLaunchIntentForPackage("net.osmand.plus")
                 ?: packageManager.getLaunchIntentForPackage("net.osmand")
             if (launchIntent != null) {
@@ -124,13 +130,13 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        binding.tvCredit.text = HtmlCompat.fromHtml(getString(R.string.opencellid_attribution), HtmlCompat.FROM_HTML_MODE_COMPACT)
-        binding.tvCredit.movementMethod = LinkMovementMethod.getInstance()
+        contentBinding.tvCredit.text = HtmlCompat.fromHtml(getString(R.string.opencellid_attribution), HtmlCompat.FROM_HTML_MODE_COMPACT)
+        contentBinding.tvCredit.movementMethod = LinkMovementMethod.getInstance()
 
-        binding.tvOsmAndCredit.text = HtmlCompat.fromHtml(getString(R.string.osmand_attribution), HtmlCompat.FROM_HTML_MODE_COMPACT)
-        binding.tvOsmAndCredit.movementMethod = LinkMovementMethod.getInstance()
+        contentBinding.tvOsmAndCredit.text = HtmlCompat.fromHtml(getString(R.string.osmand_attribution), HtmlCompat.FROM_HTML_MODE_COMPACT)
+        contentBinding.tvOsmAndCredit.movementMethod = LinkMovementMethod.getInstance()
 
-        binding.btnOsmAndPlugins.setOnClickListener {
+        contentBinding.btnOsmAndPlugins.setOnClickListener {
             val launchIntent = packageManager.getLaunchIntentForPackage("net.osmand.plus")
                 ?: packageManager.getLaunchIntentForPackage("net.osmand")
             if (launchIntent != null) {
@@ -139,37 +145,57 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        // Setup TabLayout
-        binding.tabLayout.addOnTabSelectedListener(object : TabLayout.OnTabSelectedListener {
-            override fun onTabSelected(tab: TabLayout.Tab?) {
-                when (tab?.position) {
-                    0 -> {
-                        binding.scrollViewBackground.visibility = View.VISIBLE
-                        binding.scrollViewConfig.visibility = View.GONE
-                        binding.scrollViewStatus.visibility = View.GONE
-                    }
-                    1 -> {
-                        binding.scrollViewBackground.visibility = View.GONE
-                        binding.scrollViewConfig.visibility = View.VISIBLE
-                        binding.scrollViewStatus.visibility = View.GONE
-                    }
-                    2 -> {
-                        binding.scrollViewBackground.visibility = View.GONE
-                        binding.scrollViewConfig.visibility = View.GONE
-                        binding.scrollViewStatus.visibility = View.VISIBLE
-                    }
-                }
-            }
-            override fun onTabUnselected(tab: TabLayout.Tab?) {}
-            override fun onTabReselected(tab: TabLayout.Tab?) {}
-        })
+        // Setup Navigation Drawer
+        setSupportActionBar(binding.topAppBar)
+        val toggle = ActionBarDrawerToggle(
+            this, binding.drawerLayout, binding.topAppBar,
+            R.string.navigation_drawer_open, R.string.navigation_drawer_close
+        )
+        binding.drawerLayout.addDrawerListener(toggle)
+        toggle.syncState()
 
-        // Select initial tab
-        binding.tabLayout.getTabAt(0)?.select()
+        binding.navigationView.setNavigationItemSelectedListener { menuItem ->
+            contentBinding.scrollViewBackground.visibility = View.GONE
+            contentBinding.scrollViewConfig.visibility = View.GONE
+            contentBinding.scrollViewData.visibility = View.GONE
+            contentBinding.scrollViewStatus.visibility = View.GONE
+
+            when (menuItem.itemId) {
+                R.id.nav_home -> contentBinding.scrollViewBackground.visibility = View.VISIBLE
+                R.id.nav_config -> contentBinding.scrollViewConfig.visibility = View.VISIBLE
+                R.id.nav_data -> contentBinding.scrollViewData.visibility = View.VISIBLE
+                R.id.nav_log -> contentBinding.scrollViewStatus.visibility = View.VISIBLE
+            }
+
+            binding.drawerLayout.closeDrawer(GravityCompat.START)
+            true
+        }
+
+        // Setup Theme Selection
+        val savedTheme = sharedPrefs.getString("app_theme", "system")
+        when (savedTheme) {
+            "light" -> contentBinding.rbThemeLight.isChecked = true
+            "dark" -> contentBinding.rbThemeDark.isChecked = true
+            else -> contentBinding.rbThemeSystem.isChecked = true
+        }
+
+        contentBinding.rgThemeSelection.setOnCheckedChangeListener { _, checkedId ->
+            val selectedTheme = when (checkedId) {
+                R.id.rbThemeLight -> "light"
+                R.id.rbThemeDark -> "dark"
+                else -> "system"
+            }
+            sharedPrefs.edit().putString("app_theme", selectedTheme).apply()
+            applySavedTheme()
+        }
+
+        // Select initial tab (Home)
+        binding.navigationView.setCheckedItem(R.id.nav_home)
+        contentBinding.scrollViewBackground.visibility = View.VISIBLE
 
         // Load saved preferences
         val savedKey = sharedPrefs.getString(KEY_API_KEY, "")
-        binding.etApiKey.setText(savedKey)
+        contentBinding.etApiKey.setText(savedKey)
 
         val defaultTowersSql = "SELECT lat, lon, mcc || '-' || mnc || '-' || lac || '-' || cid AS desc FROM cell_towers WHERE lat BETWEEN :minLat AND :maxLat AND lon BETWEEN :minLon AND :maxLon"
 
@@ -178,30 +204,30 @@ class MainActivity : AppCompatActivity() {
         val savedTowersSql = sharedPrefs.getString(KEY_TOWERS_SQL, oldSavedSql)
 
         if (!savedTowersSql.isNullOrEmpty()) {
-            binding.etTowersSql.setText(savedTowersSql)
-        } else if (binding.etTowersSql.text.toString().isEmpty()) {
+            contentBinding.etTowersSql.setText(savedTowersSql)
+        } else if (contentBinding.etTowersSql.text.toString().isEmpty()) {
             // Set default SQL if empty and no saved SQL
-            binding.etTowersSql.setText(defaultTowersSql)
+            contentBinding.etTowersSql.setText(defaultTowersSql)
         }
 
         val savedRadius = sharedPrefs.getInt(KEY_RADIUS, 0)
-        binding.spinnerRadius.setSelection(savedRadius)
+        contentBinding.spinnerRadius.setSelection(savedRadius)
 
         val isVerbose = sharedPrefs.getBoolean(KEY_VERBOSE, false)
-        binding.cbVerbose.isChecked = isVerbose
-        binding.cbVerbose.setOnCheckedChangeListener { _, isChecked ->
+        contentBinding.cbVerbose.isChecked = isVerbose
+        contentBinding.cbVerbose.setOnCheckedChangeListener { _, isChecked ->
             sharedPrefs.edit().putBoolean(KEY_VERBOSE, isChecked).apply()
         }
 
         val isLocateGnss = sharedPrefs.getBoolean(KEY_LOCATE_GNSS, false)
-        binding.cbLocateGnss.isChecked = isLocateGnss
-        binding.cbLocateGnss.setOnCheckedChangeListener { _, isChecked ->
+        contentBinding.cbLocateGNSS.isChecked = isLocateGnss
+        contentBinding.cbLocateGNSS.setOnCheckedChangeListener { _, isChecked ->
             sharedPrefs.edit().putBoolean(KEY_LOCATE_GNSS, isChecked).apply()
         }
 
-        binding.btnSaveApiKey.setOnClickListener {
-            val key = binding.etApiKey.text.toString().trim()
-            val radiusPosition = binding.spinnerRadius.selectedItemPosition
+        contentBinding.btnSaveApiKey.setOnClickListener {
+            val key = contentBinding.etApiKey.text.toString().trim()
+            val radiusPosition = contentBinding.spinnerRadius.selectedItemPosition
             if (key.isNotEmpty()) {
                 sharedPrefs.edit()
                     .putString(KEY_API_KEY, key)
@@ -211,12 +237,12 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        binding.btnReloadCellInfo.setOnClickListener {
+        contentBinding.btnReloadCellInfo.setOnClickListener {
             if (hasPermissions()) {
                 val cellInfo = TelephonyHelper.getCurrentCellInfo(this)
                 if (cellInfo != null) {
                     val infoStr = "${cellInfo.radio},${cellInfo.mcc},${cellInfo.mnc},${cellInfo.lac},${cellInfo.cid}"
-                    binding.etCellInfo.setText(infoStr)
+                    contentBinding.etCellInfo.setText(infoStr)
                     Toast.makeText(this, "Reloaded cell info", Toast.LENGTH_SHORT).show()
                 } else {
                     Toast.makeText(this, "Could not read cell info", Toast.LENGTH_SHORT).show()
@@ -272,7 +298,7 @@ class MainActivity : AppCompatActivity() {
                 return@setOnClickListener
             }
 
-            if (binding.etApiKey.text.toString().trim().isEmpty()) {
+            if (contentBinding.etApiKey.text.toString().trim().isEmpty()) {
                 Toast.makeText(this, "Please enter and save an API Key first", Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
@@ -310,7 +336,7 @@ class MainActivity : AppCompatActivity() {
             popup.menu.add("Current Location")
             popup.menu.add("Current Bounding Box")
             popup.menu.add("Current Towers")
-            popup.menu.add("Donate Data")
+            popup.menu.add("❤️ Donate Data")
 
             popup.setOnMenuItemClickListener { item ->
                 when (item.title) {
@@ -357,7 +383,7 @@ class MainActivity : AppCompatActivity() {
                             Toast.makeText(this@MainActivity, "No towers found in the last scan.", Toast.LENGTH_SHORT).show()
                         }
                     }
-                    "Donate Data" -> {
+                    "❤️ Donate Data" -> {
                         val apiKey = sharedPrefs.getString(KEY_API_KEY, "") ?: ""
                         if (apiKey.isEmpty()) {
                             Toast.makeText(this@MainActivity, "Please save an API key first.", Toast.LENGTH_SHORT).show()
@@ -413,10 +439,10 @@ class MainActivity : AppCompatActivity() {
             popup.show()
         }
 
-        binding.btnCopyLog.setOnClickListener {
+        contentBinding.btnCopyLog.setOnClickListener {
             val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-            val isSqlTab = binding.tabLayout.selectedTabPosition == 1
-            val textToCopy = if (isSqlTab) binding.tvSqlResult.text else binding.tvStatus.text
+            val isSqlTab = false
+            val textToCopy = contentBinding.tvStatus.text
             val label = if (isSqlTab) "OsmAnd Cellular SQL Result" else "OsmAnd Cellular Log"
             val clip = ClipData.newPlainText(label, textToCopy)
             clipboard.setPrimaryClip(clip)
@@ -424,37 +450,37 @@ class MainActivity : AppCompatActivity() {
             Toast.makeText(this, toastMsg, Toast.LENGTH_SHORT).show()
         }
 
-        binding.btnCopySqlResult.setOnClickListener {
+        contentBinding.btnCopySqlResult.setOnClickListener {
             val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-            val clip = ClipData.newPlainText("OsmAnd Cellular SQL Result", binding.tvSqlResult.text)
+            val clip = ClipData.newPlainText("OsmAnd Cellular SQL Result", contentBinding.tvSqlResult.text)
             clipboard.setPrimaryClip(clip)
             Toast.makeText(this, "SQL Result copied to clipboard", Toast.LENGTH_SHORT).show()
         }
 
 
-        binding.btnRunSql.setOnClickListener {
-            val sql = binding.etSql.text.toString().trim()
+        contentBinding.btnRunSql.setOnClickListener {
+            val sql = contentBinding.etSql.text.toString().trim()
             if (sql.isNotEmpty()) {
                 runSql(sql)
             }
         }
 
-        binding.btnDefaultTowersSql.setOnClickListener {
+        contentBinding.btnDefaultTowersSql.setOnClickListener {
             val oldSavedSqlLocal = sharedPrefs.getString(KEY_SQL, "")
             val savedTowersSqlLocal = sharedPrefs.getString(KEY_TOWERS_SQL, oldSavedSqlLocal)
             if (!savedTowersSqlLocal.isNullOrEmpty()) {
-                binding.etTowersSql.setText(savedTowersSqlLocal)
+                contentBinding.etTowersSql.setText(savedTowersSqlLocal)
             } else {
-                binding.etTowersSql.setText(defaultTowersSql)
+                contentBinding.etTowersSql.setText(defaultTowersSql)
             }
         }
 
-        binding.btnBaseTowersSql.setOnClickListener {
-            binding.etTowersSql.setText(defaultTowersSql)
+        contentBinding.btnBaseTowersSql.setOnClickListener {
+            contentBinding.etTowersSql.setText(defaultTowersSql)
         }
 
-        binding.btnSaveTowersSql.setOnClickListener {
-            val sql = binding.etTowersSql.text.toString().trim()
+        contentBinding.btnSaveTowersSql.setOnClickListener {
+            val sql = contentBinding.etTowersSql.text.toString().trim()
             sharedPrefs.edit().putString(KEY_TOWERS_SQL, sql).apply()
             Toast.makeText(this, "Towers SQL Saved", Toast.LENGTH_SHORT).show()
         }
@@ -467,7 +493,7 @@ class MainActivity : AppCompatActivity() {
                             contentResolver.openInputStream(it)?.use { inputStream ->
                                 val text = inputStream.bufferedReader().use { reader -> reader.readText() }
                                 withContext(Dispatchers.Main) {
-                                    binding.etSql.setText(text)
+                                    contentBinding.etSql.setText(text)
                                     Toast.makeText(this@MainActivity, "File loaded", Toast.LENGTH_SHORT).show()
                                 }
                             }
@@ -504,7 +530,7 @@ class MainActivity : AppCompatActivity() {
                                                 count++
                                                 if (count % 100 == 0) {
                                                     withContext(Dispatchers.Main) {
-                                                        binding.tvSqlResult.text = "Executing... $count statements done."
+                                                        contentBinding.tvSqlResult.text = "Executing... $count statements done."
                                                     }
                                                 }
                                             }
@@ -535,7 +561,7 @@ class MainActivity : AppCompatActivity() {
                     try {
                         withContext(Dispatchers.IO) {
                             contentResolver.openOutputStream(it)?.use { outputStream ->
-                                val text = binding.etSql.text.toString()
+                                val text = contentBinding.etSql.text.toString()
                                 outputStream.write(text.toByteArray())
                                 withContext(Dispatchers.Main) {
                                     Toast.makeText(this@MainActivity, "File saved", Toast.LENGTH_SHORT).show()
@@ -573,19 +599,19 @@ class MainActivity : AppCompatActivity() {
             }
             false
         }
-        binding.etTowersSql.setOnTouchListener(touchListener)
-        binding.etSql.setOnTouchListener(touchListener)
+        contentBinding.etTowersSql.setOnTouchListener(touchListener)
+        contentBinding.etSql.setOnTouchListener(touchListener)
 
-        binding.btnSaveFile.setOnClickListener {
+        contentBinding.btnSaveFile.setOnClickListener {
             saveFileLauncher.launch("query.sql")
         }
 
-        binding.btnOpenFile.setOnClickListener {
+        contentBinding.btnOpenFile.setOnClickListener {
             // Support generic text files or unknown types often assigned to .sql
             openFileLauncher.launch(arrayOf("text/*", "application/sql", "application/x-sql", "text/sql", "application/octet-stream"))
         }
 
-        binding.btnRunFile.setOnClickListener {
+        contentBinding.btnRunFile.setOnClickListener {
             runFileLauncher.launch(arrayOf("text/*", "application/sql", "application/x-sql", "text/sql", "application/octet-stream"))
         }
     }
@@ -664,10 +690,9 @@ class MainActivity : AppCompatActivity() {
         if (latLonStr != null) {
             // Update UI on main thread just in case
             lifecycleScope.launch(Dispatchers.Main) {
-                binding.etManualLocation.setText(latLonStr)
-                binding.cbManualLocation.isChecked = true
-                binding.cbLocateGnss.isChecked = true
-                binding.tabLayout.getTabAt(1)?.select() // Switch to CONFIG tab
+                contentBinding.etManualLocation.setText(latLonStr)
+                contentBinding.cbManualLocation.isChecked = true
+                contentBinding.cbLocateGNSS.isChecked = true
             }
         }
     }
@@ -683,9 +708,9 @@ class MainActivity : AppCompatActivity() {
             val cellInfo = TelephonyHelper.getCurrentCellInfo(this)
             if (cellInfo != null) {
                 // Populate if it's currently empty
-                if (binding.etCellInfo.text.toString().trim().isEmpty()) {
+                if (contentBinding.etCellInfo.text.toString().trim().isEmpty()) {
                     val infoStr = "${cellInfo.radio},${cellInfo.mcc},${cellInfo.mnc},${cellInfo.lac},${cellInfo.cid}"
-                    binding.etCellInfo.setText(infoStr)
+                    contentBinding.etCellInfo.setText(infoStr)
                 }
             }
         }
@@ -719,13 +744,13 @@ class MainActivity : AppCompatActivity() {
     private fun appendSqlResult(msg: String, clear: Boolean = false) {
         runOnUiThread {
             if (clear) {
-                binding.tvSqlResult.text = msg
+                contentBinding.tvSqlResult.text = msg
             } else {
-                val current = binding.tvSqlResult.text.toString()
-                binding.tvSqlResult.text = "$current\n$msg"
+                val current = contentBinding.tvSqlResult.text.toString()
+                contentBinding.tvSqlResult.text = "$current\n$msg"
             }
-            binding.scrollViewSqlResult.post {
-                binding.scrollViewSqlResult.fullScroll(View.FOCUS_DOWN)
+            contentBinding.scrollViewSqlResult.post {
+                contentBinding.scrollViewSqlResult.fullScroll(View.FOCUS_DOWN)
             }
         }
     }
@@ -737,7 +762,7 @@ class MainActivity : AppCompatActivity() {
         var parsedLac = ""
         var parsedCid = ""
 
-        val cellInfoStr = binding.etCellInfo.text.toString().trim()
+        val cellInfoStr = contentBinding.etCellInfo.text.toString().trim()
         val parts = cellInfoStr.split(",")
         if (parts.size == 5) {
             parsedRadio = parts[0].trim()
@@ -759,7 +784,7 @@ class MainActivity : AppCompatActivity() {
             .replace(":maxLon", currentMaxLon?.toString() ?: "null")
     }
 
-    private fun runSql(sql: String, showQuery: Boolean = binding.cbShowQuery.isChecked) {
+    private fun runSql(sql: String, showQuery: Boolean = contentBinding.cbShowQuery.isChecked) {
         appendSqlResult("--- Running SQL ---", clear = true)
 
         val finalSql = buildParameterizedSql(sql)
@@ -811,10 +836,10 @@ class MainActivity : AppCompatActivity() {
 
     private fun appendLog(msg: String) {
         runOnUiThread {
-            val current = binding.tvStatus.text.toString()
-            binding.tvStatus.text = "$current\n$msg"
-            binding.scrollViewStatus.post {
-                binding.scrollViewStatus.fullScroll(android.view.View.FOCUS_DOWN)
+            val current = contentBinding.tvStatus.text.toString()
+            contentBinding.tvStatus.text = "$current\n$msg"
+            contentBinding.scrollViewStatus.post {
+                contentBinding.scrollViewStatus.fullScroll(android.view.View.FOCUS_DOWN)
             }
         }
     }
@@ -822,7 +847,7 @@ class MainActivity : AppCompatActivity() {
     private fun performScan() {
         val apiKey = sharedPrefs.getString(KEY_API_KEY, "") ?: return
 
-        val cellInfoStr = binding.etCellInfo.text.toString().trim()
+        val cellInfoStr = contentBinding.etCellInfo.text.toString().trim()
         if (cellInfoStr.isEmpty()) {
             Toast.makeText(this, "Please enter cellular info in the text field.", Toast.LENGTH_SHORT).show()
             return
@@ -845,18 +870,18 @@ class MainActivity : AppCompatActivity() {
             return
         }
 
-        binding.tvStatus.text = ""
+        contentBinding.tvStatus.text = ""
         appendLog("Status: Scanning edited cell data...")
-        if (binding.cbVerbose.isChecked) { Toast.makeText(this, "Scanning edited cell data...", Toast.LENGTH_SHORT).show() }
+        if (contentBinding.cbVerbose.isChecked) { Toast.makeText(this, "Scanning edited cell data...", Toast.LENGTH_SHORT).show() }
         binding.btnScan.isEnabled = false
 
         lifecycleScope.launch {
 
             var gnssLat: Double? = null
             var gnssLon: Double? = null
-            val isLocateGnss = binding.cbLocateGnss.isChecked
-            val isManualGnss = binding.cbManualLocation.isChecked
-            val manualLocationText = binding.etManualLocation.text.toString().trim()
+            val isLocateGnss = contentBinding.cbLocateGNSS.isChecked
+            val isManualGnss = contentBinding.cbManualLocation.isChecked
+            val manualLocationText = contentBinding.etManualLocation.text.toString().trim()
 
             if (isLocateGnss) {
                 if (isManualGnss && manualLocationText.isNotEmpty()) {
@@ -939,7 +964,7 @@ class MainActivity : AppCompatActivity() {
 
             val msgConnected = "Resolving location for $parsedRadio MCC:$parsedMcc MNC:$parsedMnc LAC:$parsedLac CID:$parsedCid..."
             appendLog(msgConnected)
-            if (binding.cbVerbose.isChecked) { Toast.makeText(this@MainActivity, "Resolving location...", Toast.LENGTH_SHORT).show() }
+            if (contentBinding.cbVerbose.isChecked) { Toast.makeText(this@MainActivity, "Resolving location...", Toast.LENGTH_SHORT).show() }
 
             val mainTower = dataSyncManager.ensureCellTowerExistsAndGet(
                 apiKey,
@@ -954,7 +979,7 @@ class MainActivity : AppCompatActivity() {
 
             var effectiveMainTower = mainTower
 
-            val radiusPosition = binding.spinnerRadius.selectedItemPosition
+            val radiusPosition = contentBinding.spinnerRadius.selectedItemPosition
             // Save it just in case they didn't hit Save Key
             sharedPrefs.edit().putInt(KEY_RADIUS, radiusPosition).apply()
 
@@ -964,7 +989,7 @@ class MainActivity : AppCompatActivity() {
 
             var fallbackCenterLat: Double? = null
             var fallbackCenterLon: Double? = null
-            val sqlEditorContent = binding.etTowersSql.text.toString().trim()
+            val sqlEditorContent = contentBinding.etTowersSql.text.toString().trim()
 
             var surroundingTowers: List<com.example.osmandcellularsurround.db.CellTowerResult> = emptyList()
             var currentTryRadiusPosition = radiusPosition
@@ -1063,7 +1088,7 @@ class MainActivity : AppCompatActivity() {
             if (surroundingTowers.isEmpty()) {
                 val msgNoTowers = "No towers found."
                 appendLog(msgNoTowers)
-                if (binding.cbVerbose.isChecked) { Toast.makeText(this@MainActivity, msgNoTowers, Toast.LENGTH_SHORT).show() }
+                if (contentBinding.cbVerbose.isChecked) { Toast.makeText(this@MainActivity, msgNoTowers, Toast.LENGTH_SHORT).show() }
                 binding.btnScan.isEnabled = true
                 return@launch
             }
@@ -1116,7 +1141,7 @@ class MainActivity : AppCompatActivity() {
                     if (showSuccess) {
                         val msgDone = "Done. Check OsmAnd."
                         appendLog(msgDone)
-                        if (binding.cbVerbose.isChecked) { Toast.makeText(this@MainActivity, msgDone, Toast.LENGTH_SHORT).show() }
+                        if (contentBinding.cbVerbose.isChecked) { Toast.makeText(this@MainActivity, msgDone, Toast.LENGTH_SHORT).show() }
                         Unit
                     } else {
                         val msgNoConn = "Failed to show on map. Please ensure OsmAnd is installed and the Cellular Surround plugin is enabled."
@@ -1182,5 +1207,16 @@ class MainActivity : AppCompatActivity() {
     override fun onDestroy() {
         super.onDestroy()
         osmandHelper.disconnect()
+    }
+
+    private fun applySavedTheme() {
+        val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val theme = prefs.getString("app_theme", "system")
+        val mode = when (theme) {
+            "light" -> AppCompatDelegate.MODE_NIGHT_NO
+            "dark" -> AppCompatDelegate.MODE_NIGHT_YES
+            else -> AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM
+        }
+        AppCompatDelegate.setDefaultNightMode(mode)
     }
 }
