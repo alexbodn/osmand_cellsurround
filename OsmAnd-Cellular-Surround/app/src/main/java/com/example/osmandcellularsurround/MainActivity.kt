@@ -343,13 +343,48 @@ class MainActivity : AppCompatActivity() {
             popup.setOnMenuItemClickListener { item ->
                 when (item.title) {
                     "Current Location" -> {
-                        if (currentLocationLat != null && currentLocationLon != null) {
+                        var latToShare: Double? = null
+                        var lonToShare: Double? = null
+
+                        if (contentBinding.cbManualLocation.isChecked) {
+                            val manualText = contentBinding.etManualLocation.text.toString().trim()
+                            if (manualText.isNotEmpty()) {
+                                try {
+                                    val parts = manualText.split(",")
+                                    if (parts.size >= 2) {
+                                        latToShare = parts[0].trim().toDouble()
+                                        lonToShare = parts[1].trim().toDouble()
+                                    }
+                                } catch (e: Exception) {
+                                    // Ignore parse error, fallback to GNSS or cellular
+                                }
+                            }
+                        }
+
+                        if (latToShare == null && contentBinding.cbLocateGNSS.isChecked && hasPermissions()) {
+                            try {
+                                val lastKnown = locationManager?.getLastKnownLocation(LocationManager.GPS_PROVIDER)
+                                if (lastKnown != null && lastKnown.hasAccuracy()) {
+                                    latToShare = lastKnown.latitude
+                                    lonToShare = lastKnown.longitude
+                                }
+                            } catch (e: SecurityException) {
+                                // Ignored
+                            }
+                        }
+
+                        if (latToShare == null) {
+                            latToShare = currentLocationLat
+                            lonToShare = currentLocationLon
+                        }
+
+                        if (latToShare != null && lonToShare != null) {
                             val shareIntent = Intent(Intent.ACTION_SEND)
                             shareIntent.type = "text/plain"
-                            shareIntent.putExtra(Intent.EXTRA_TEXT, "geo:${currentLocationLat},${currentLocationLon}")
+                            shareIntent.putExtra(Intent.EXTRA_TEXT, "geo:${latToShare},${lonToShare}")
                             startActivity(Intent.createChooser(shareIntent, "Share Location"))
                         } else {
-                            Toast.makeText(this@MainActivity, "Location not calculated yet. Please SCAN first.", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(this@MainActivity, "Location not calculated yet. Please check manual location, GNSS, or perform a scan.", Toast.LENGTH_SHORT).show()
                         }
                     }
                     "Current Bounding Box" -> {
@@ -885,31 +920,30 @@ class MainActivity : AppCompatActivity() {
             val isManualGnss = contentBinding.cbManualLocation.isChecked
             val manualLocationText = contentBinding.etManualLocation.text.toString().trim()
 
-            if (isLocateGnss) {
-                if (isManualGnss && manualLocationText.isNotEmpty()) {
-                    try {
-                        val parts = manualLocationText.split(",")
-                        if (parts.size >= 2) {
-                            gnssLat = parts[0].trim().toDouble()
-                            gnssLon = parts[1].trim().toDouble()
-                            appendLog("Using manual location: $gnssLat, $gnssLon")
-                        } else {
-                            throw NumberFormatException("Invalid format")
-                        }
-                    } catch (e: Exception) {
-                        withContext(Dispatchers.Main) { Toast.makeText(this@MainActivity, "Invalid manual location format. Use lat, lon.", Toast.LENGTH_SHORT).show() }
-                        withContext(Dispatchers.Main) { binding.btnScan.isEnabled = true }
-                        return@launch
+            if (isManualGnss && manualLocationText.isNotEmpty()) {
+                try {
+                    val parts = manualLocationText.split(",")
+                    if (parts.size >= 2) {
+                        gnssLat = parts[0].trim().toDouble()
+                        gnssLon = parts[1].trim().toDouble()
+                        appendLog("Using manual location: $gnssLat, $gnssLon")
+                    } else {
+                        throw NumberFormatException("Invalid format")
                     }
-                } else {
-                    if (!hasPermissions()) {
-                        withContext(Dispatchers.Main) { Toast.makeText(this@MainActivity, "Location permissions required for GNSS.", Toast.LENGTH_SHORT).show() }
-                        withContext(Dispatchers.Main) { binding.btnScan.isEnabled = true }
-                        return@launch
-                    }
+                } catch (e: Exception) {
+                    withContext(Dispatchers.Main) { Toast.makeText(this@MainActivity, "Invalid manual location format. Use lat, lon.", Toast.LENGTH_SHORT).show() }
+                    withContext(Dispatchers.Main) { binding.btnScan.isEnabled = true }
+                    return@launch
+                }
+            } else if (isLocateGnss) {
+                if (!hasPermissions()) {
+                    withContext(Dispatchers.Main) { Toast.makeText(this@MainActivity, "Location permissions required for GNSS.", Toast.LENGTH_SHORT).show() }
+                    withContext(Dispatchers.Main) { binding.btnScan.isEnabled = true }
+                    return@launch
+                }
 
-                    appendLog("Status: Acquiring GNSS location...")
-                    try {
+                appendLog("Status: Acquiring GNSS location...")
+                try {
                     val lastKnown = locationManager?.getLastKnownLocation(LocationManager.GPS_PROVIDER)
                     if (lastKnown != null && lastKnown.hasAccuracy() && lastKnown.accuracy < 20f &&
                         (System.currentTimeMillis() - lastKnown.time < 30000)) {
@@ -959,7 +993,6 @@ class MainActivity : AppCompatActivity() {
                     withContext(Dispatchers.Main) { Toast.makeText(this@MainActivity, "Location permissions denied.", Toast.LENGTH_SHORT).show() }
                     withContext(Dispatchers.Main) { binding.btnScan.isEnabled = true }
                     return@launch
-                }
                 }
             }
 
