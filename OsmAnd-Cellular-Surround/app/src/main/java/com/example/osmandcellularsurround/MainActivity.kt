@@ -373,18 +373,52 @@ class MainActivity : AppCompatActivity() {
                             }
                         }
 
-                        if (latToShare == null) {
-                            latToShare = currentLocationLat
-                            lonToShare = currentLocationLon
-                        }
-
                         if (latToShare != null && lonToShare != null) {
                             val shareIntent = Intent(Intent.ACTION_SEND)
                             shareIntent.type = "text/plain"
                             shareIntent.putExtra(Intent.EXTRA_TEXT, "geo:${latToShare},${lonToShare}")
                             startActivity(Intent.createChooser(shareIntent, "Share Location"))
                         } else {
-                            Toast.makeText(this@MainActivity, "Location not calculated yet. Please check manual location, GNSS, or perform a scan.", Toast.LENGTH_SHORT).show()
+                            // Fallback: Try OpenCelliD directly
+                            lifecycleScope.launch {
+                                val apiKey = sharedPrefs.getString(KEY_API_KEY, "") ?: ""
+                                val cellInfoStr = contentBinding.etCellInfo.text.toString().trim()
+                                val parts = cellInfoStr.split(",")
+                                if (parts.size == 5) {
+                                    val parsedRadio = parts[0].trim()
+                                    val parsedMcc = parts[1].trim().toIntOrNull()
+                                    val parsedMnc = parts[2].trim().toIntOrNull()
+                                    val parsedLac = parts[3].trim().toIntOrNull()
+                                    val parsedCid = parts[4].trim().toLongOrNull()
+
+                                    if (parsedMcc != null && parsedMnc != null && parsedLac != null && parsedCid != null) {
+                                        val tower = dataSyncManager.ensureCellTowerExistsAndGet(apiKey, parsedRadio, parsedMcc, parsedMnc, parsedLac, parsedCid) { }
+                                        if (tower != null) {
+                                            withContext(Dispatchers.Main) {
+                                                val shareIntent = Intent(Intent.ACTION_SEND)
+                                                shareIntent.type = "text/plain"
+                                                shareIntent.putExtra(Intent.EXTRA_TEXT, "geo:${tower.lat},${tower.lon}")
+                                                startActivity(Intent.createChooser(shareIntent, "Share Location"))
+                                            }
+                                            return@launch
+                                        }
+                                    }
+                                }
+
+                                // Last resort: cached current location
+                                if (currentLocationLat != null && currentLocationLon != null) {
+                                    withContext(Dispatchers.Main) {
+                                        val shareIntent = Intent(Intent.ACTION_SEND)
+                                        shareIntent.type = "text/plain"
+                                        shareIntent.putExtra(Intent.EXTRA_TEXT, "geo:${currentLocationLat},${currentLocationLon}")
+                                        startActivity(Intent.createChooser(shareIntent, "Share Location"))
+                                    }
+                                } else {
+                                    withContext(Dispatchers.Main) {
+                                        Toast.makeText(this@MainActivity, "Location not calculated yet. Please check manual location, GNSS, or perform a scan.", Toast.LENGTH_SHORT).show()
+                                    }
+                                }
+                            }
                         }
                     }
                     "Current Bounding Box" -> {
