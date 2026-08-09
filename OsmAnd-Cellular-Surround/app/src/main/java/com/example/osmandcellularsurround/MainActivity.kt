@@ -401,22 +401,32 @@ class MainActivity : AppCompatActivity() {
                                                 startActivity(Intent.createChooser(shareIntent, "Share Location"))
                                             }
                                             return@launch
+                                        } else {
+                                            val dao = AppDatabase.getDatabase(this@MainActivity).cellTowerDao()
+                                            val lacTowers = dao.getAllTowersInLac(parsedMcc, parsedMnc, parsedLac)
+                                            if (lacTowers.isNotEmpty()) {
+                                                var sumLat = 0.0
+                                                var sumLon = 0.0
+                                                for (t in lacTowers) {
+                                                    sumLat += t.lat
+                                                    sumLon += t.lon
+                                                }
+                                                val avgLat = sumLat / lacTowers.size
+                                                val avgLon = sumLon / lacTowers.size
+                                                withContext(Dispatchers.Main) {
+                                                    val shareIntent = Intent(Intent.ACTION_SEND)
+                                                    shareIntent.type = "text/plain"
+                                                    shareIntent.putExtra(Intent.EXTRA_TEXT, "geo:${avgLat},${avgLon}")
+                                                    startActivity(Intent.createChooser(shareIntent, "Share Location"))
+                                                }
+                                                return@launch
+                                            }
                                         }
                                     }
                                 }
 
-                                // Last resort: cached current location
-                                if (currentLocationLat != null && currentLocationLon != null) {
-                                    withContext(Dispatchers.Main) {
-                                        val shareIntent = Intent(Intent.ACTION_SEND)
-                                        shareIntent.type = "text/plain"
-                                        shareIntent.putExtra(Intent.EXTRA_TEXT, "geo:${currentLocationLat},${currentLocationLon}")
-                                        startActivity(Intent.createChooser(shareIntent, "Share Location"))
-                                    }
-                                } else {
-                                    withContext(Dispatchers.Main) {
-                                        Toast.makeText(this@MainActivity, "Location not calculated yet. Please check manual location, GNSS, or perform a scan.", Toast.LENGTH_SHORT).show()
-                                    }
+                                withContext(Dispatchers.Main) {
+                                    Toast.makeText(this@MainActivity, "Unable to resolve fallback cellular location. Please check info.", Toast.LENGTH_SHORT).show()
                                 }
                             }
                         }
