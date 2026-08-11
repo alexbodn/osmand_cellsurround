@@ -308,26 +308,12 @@
                     android:layout_gravity="center_vertical" />
             </LinearLayout>
 
-        </LinearLayout>
-        </ScrollView>
-
-        <ScrollView
-            android:id="@+id/scrollViewData"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:fillViewport="true"
-            android:visibility="gone">
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical">
-
-            <TextView
+        <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="Towers SQL"
                 android:textSize="12sp"
-                android:layout_marginTop="8dp" />
+                android:layout_marginTop="16dp" />
 
             <LinearLayout
                 android:layout_width="match_parent"
@@ -376,12 +362,23 @@
                         android:text="Save" />
                 </LinearLayout>
             </LinearLayout>
+            </LinearLayout>
+        </ScrollView>
 
-            <View
+        <ScrollView
+            android:id="@+id/scrollViewData"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:fillViewport="true"
+            android:visibility="gone">
+            <LinearLayout
                 android:layout_width="match_parent"
-                android:layout_height="1dp"
-                android:layout_marginTop="16dp"
-                android:background="@android:color/darker_gray" />
+                android:layout_height="wrap_content"
+                android:orientation="vertical">
+
+
+
+
 
             <TextView
                 android:layout_width="match_parent"
