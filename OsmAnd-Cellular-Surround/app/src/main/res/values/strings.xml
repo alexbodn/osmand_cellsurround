@@ -5,4 +5,6 @@
     <string name="osmand_attribution"><![CDATA[Powered by <a href="https://osmand.net/">OsmAnd</a>. Please ensure <a href="https://play.google.com/store/apps/details?id=net.osmand.plus">OsmAnd+</a> or <a href="https://play.google.com/store/apps/details?id=net.osmand">OsmAnd</a> is installed and the Cellular Surround plugin is enabled.]]></string>
     <string name="api_key_hint">API Key</string>
     <string name="api_key_label"><![CDATA[API Key. <a href="https://my.opencellid.org/dashboard">Register free</a> to get yours.]]></string>
+    <string name="navigation_drawer_open">Open navigation drawer</string>
+    <string name="navigation_drawer_close">Close navigation drawer</string>
 </resources>
